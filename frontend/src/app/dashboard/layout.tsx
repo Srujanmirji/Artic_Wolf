@@ -91,8 +91,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 src="/aagam-logo.png"
                                 alt="Aagam AI"
                                 width={160}
-                                height={160}
-                                className="drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] object-contain"
+                                height={45}
+                                className="drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] object-contain w-auto h-8 lg:h-10"
                                 priority
                             />
                         </div>

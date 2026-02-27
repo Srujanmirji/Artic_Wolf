@@ -1,0 +1,64 @@
+Vibe Coding Checklist
+This document outlines a structured approach to "vibe coding" by ensuring essential
+preparatory steps are completed before development begins. By following this
+checklist, developers can enhance project clarity, maintain code quality, and facilitate
+efficient collaboration. Each step includes a description and links to relevant video
+tutorials for practical guidance.
+
+1. Product Requirement Document (PRD)
+Before initiating any application development, a comprehensive Product Requirement
+Document (PRD) is crucial. This document serves as a blueprint, detailing the
+application's purpose, features, and functionalities from a user's perspective. It is
+recommended to articulate the application's concept in simple terms to a large
+language model (LLM) and leverage its capabilities to generate a detailed PRD.
+Video Resources:
+How to Generate Production-Ready PRDs with AI (Then Build the App)
+
+2. Design Document
+A Design Document translates the PRD's requirements into visual and interactive
+specifications. This involves selecting an inspirational design from platforms such as
+Dribbble or Mobbin and then using that inspiration to guide the creation of a detailed
+design document by sharing the link to gemini and asking it to make a design doc
+based on that. This document typically includes wireframes, mockups, and user
+interface (UI) specifications.
+Video Resources for newer methods:
+3 More Ways To ACTUALLY Build Beautiful Websites with Cursor IDE
+
+3. Tech Rules (Tech Stack Definition)
+Defining the technical rules and the technology stack is a foundational step that
+dictates the tools, frameworks, languages, and platforms to be used throughout the
+project. This ensures consistency, compatibility, and scalability. The tech rules should
+
+clearly outline the chosen technologies and any specific guidelines for their
+implementation.
+Video Resources:
+Ultimate Guide to Choosing a Tech Stack
+
+4. Todo Markdown File (todo.md)
+Once the PRD, Design Document, and Tech Rules are finalized and placed in the
+project's source folder, the next step is to generate a todo.md file. This file, created by
+the vibe coder after analyzing the three foundational documents, will break down the
+project into manageable, feature-specific tasks. This approach ensures that
+development progresses systematically, tackling one feature at a time.
+
+5. Initialize Git
+Version control is paramount for any software development project. Initializing Git in
+your project directory allows for tracking changes, collaborating with others, and most
+importantly, provides the ability to roll back to previous versions if any feature
+implementation goes awry. This safeguards against potential errors introduced during
+the "vibe coding" process.
+Video Resources:
+Git and GitHub - 0 Experience to Professional in 1 Tutorial (Part 1)
+
+6. GitHub Integration and CodeRabbit
+After the application runs successfully locally, the code should be uploaded to GitHub.
+To ensure code quality, security, and maintainability, it is highly recommended to
+integrate CodeRabbit. CodeRabbit is an AI-powered tool that scans your entire
+codebase for bugs and security vulnerabilities, providing automated code reviews
+directly within your pull requests. This step is crucial for ensuring your code is
+production-ready.
+Coderabbit: https://www.coderabbit.ai
+Video Resources:
+Getting started with CodeRabbit: From Setup through Your First PR
+
+

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.SITE_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
-    "http://localhost:3000"
+    "https://www.aagam.pro"
   ),
   title: {
     default: "Aagam AI | Inventory Intelligence",

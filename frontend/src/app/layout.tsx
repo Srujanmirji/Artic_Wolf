@@ -72,6 +72,8 @@ export const metadata: Metadata = {
 
 import { I18nProvider } from "@/components/I18nProvider";
 
+import Script from "next/script";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -79,6 +81,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#1e293b" />
+        <link rel="apple-touch-icon" href="/aagam-logo.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
@@ -86,6 +93,22 @@ export default function RootLayout({
         <I18nProvider>
           {children}
         </I18nProvider>
+        <Script id="register-sw" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(
+                  function(registration) {
+                    console.log('PWA Service Worker registration successful with scope: ', registration.scope);
+                  },
+                  function(err) {
+                    console.log('PWA Service Worker registration failed: ', err);
+                  }
+                );
+              });
+            }
+          `}
+        </Script>
       </body>
     </html>
   );

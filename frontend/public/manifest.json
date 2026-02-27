@@ -1,0 +1,17 @@
+{
+  "name": "Aagam AI",
+  "short_name": "Aagam AI",
+  "description": "Inventory intelligence for modern supply chains.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#11212D",
+  "theme_color": "#11212D",
+  "icons": [
+    {
+      "src": "/aagam-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

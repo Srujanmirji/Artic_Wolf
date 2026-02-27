@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Clock, TrendingUp, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { getDefaultOrgId, getLatestNews, fetchMarketIntelligence, type NewsItem } from "@/lib/api";
@@ -81,46 +82,28 @@ function mapNewsItem(item: NewsItem): NewsCard {
 
 export default function NewsIntelligencePage() {
     const orgId = getDefaultOrgId();
-    const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-    const [loadError, setLoadError] = useState<string | null>(null);
-    const [isFetching, setIsFetching] = useState(false);
+    const queryClient = useQueryClient();
 
-    const loadData = (active: { current: boolean }) => {
-        if (!orgId) return;
-        getLatestNews(orgId)
-            .then((data) => {
-                if (active.current) setNewsItems(data || []);
-            })
-            .catch((err) => {
-                if (active.current) setLoadError(err.message || "Failed to load news.");
-            });
-    };
+    const { data: newsItemsData, error: queryError, isLoading } = useQuery({
+        queryKey: ['news', orgId],
+        queryFn: () => getLatestNews(orgId),
+        enabled: !!orgId
+    });
 
-    useEffect(() => {
-        const active = { current: true };
-        loadData(active);
-        return () => { active.current = false; };
-    }, [orgId]);
-
-    const handleFetch = async () => {
-        if (!orgId || isFetching) return;
-        setIsFetching(true);
-        setLoadError(null);
-        try {
-            await fetchMarketIntelligence(orgId);
-            // Refresh the list after fetching new articles
-            loadData({ current: true });
-        } catch (err: any) {
-            setLoadError(err.message || "Failed to fetch top market insights.");
-        } finally {
-            setIsFetching(false);
+    const fetchMutation = useMutation({
+        mutationFn: () => fetchMarketIntelligence(orgId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['news', orgId] });
         }
-    };
+    });
+
+    const loadError = queryError ? (queryError as Error).message : fetchMutation.error ? (fetchMutation.error as Error).message : null;
+    const isFetching = fetchMutation.isPending;
 
     const cards = useMemo(() => {
-        if (!newsItems.length) return FALLBACK_NEWS;
-        return newsItems.map(mapNewsItem);
-    }, [newsItems]);
+        if (!newsItemsData || !newsItemsData.length) return FALLBACK_NEWS;
+        return newsItemsData.map(mapNewsItem);
+    }, [newsItemsData]);
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -132,7 +115,7 @@ export default function NewsIntelligencePage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={handleFetch}
+                        onClick={() => fetchMutation.mutate()}
                         disabled={isFetching || !orgId}
                         className="bg-theme-800/60 border border-theme-500/30 text-white px-4 py-2 rounded-lg font-medium hover:bg-theme-700/80 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
                     >

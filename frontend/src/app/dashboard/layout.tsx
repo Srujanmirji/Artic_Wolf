@@ -21,6 +21,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import "@/i18n/config";
+import { useAuthStore } from "@/store/useAuthStore";
 
 const SIDEBAR_LINKS = [
     { name: "nav.overview", href: "/dashboard", icon: LayoutDashboard },
@@ -34,43 +35,25 @@ const SIDEBAR_LINKS = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const { t, ready } = useTranslation();
-    const [userProfile, setUserProfile] = useState<any>(null);
-
-    const loadProfile = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-            const meta = session.user.user_metadata;
-            setUserProfile({
-                name: `${meta?.first_name || ''} ${meta?.last_name || ''}`.trim() || meta?.full_name || meta?.name || 'User',
-                given_name: meta?.first_name || meta?.full_name?.split(' ')[0] || meta?.name?.split(' ')[0],
-                picture: meta?.avatar_url || meta?.picture
-            });
-        } else {
-            // Fallback to Google local storage if not a Supabase auth user
-            const profileStr = localStorage.getItem('userProfile');
-            if (profileStr) {
-                try {
-                    setUserProfile(JSON.parse(profileStr));
-                } catch (e) {
-                    console.error("Failed to parse user profile", e);
-                }
-            } else {
-                setUserProfile(null);
-            }
-        }
-    };
+    const userProfile = useAuthStore((state) => state.user);
 
     useEffect(() => {
-        // Initial load
-        loadProfile();
-
-        // Listen for profile updates from Settings page
-        window.addEventListener('profileUpdated', loadProfile);
-
-        return () => {
-            window.removeEventListener('profileUpdated', loadProfile);
-        };
-    }, []);
+        // Hydrate from Supabase session if store is empty (user refreshed page)
+        if (!userProfile) {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                if (session?.user) {
+                    const meta = session.user.user_metadata;
+                    useAuthStore.getState().login({
+                        id: session.user.id,
+                        email: session.user.email,
+                        name: `${meta?.first_name || ''} ${meta?.last_name || ''}`.trim() || meta?.full_name || meta?.name || 'User',
+                        picture: meta?.avatar_url || meta?.picture,
+                        authProvider: 'supabase'
+                    });
+                }
+            });
+        }
+    }, [userProfile]);
 
     return (
         <div className="flex h-screen w-full bg-theme-900 text-theme-100 font-sans p-2 sm:p-4 lg:p-6 overflow-hidden">
@@ -111,7 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div className="flex items-center gap-4">
                         <LanguageSwitcher />
                         <span className="text-theme-300 font-medium hidden sm:block">
-                            {t('greeting', { name: userProfile?.given_name || userProfile?.name?.split(' ')[0] || 'User' })}
+                            {t('greeting', { name: userProfile?.name?.split(' ')[0] || 'User' })}
                         </span>
                         <div className="relative cursor-pointer hover:ring-2 hover:ring-theme-500/50 rounded-full transition-all">
                             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-theme-300 to-theme-500 border-2 border-theme-800 flex items-center justify-center text-sm font-bold text-theme-900 overflow-hidden">

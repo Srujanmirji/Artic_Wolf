@@ -1,5 +1,7 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
@@ -18,8 +20,25 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+app.use(helmet());
+app.use(cors({
+    origin: process.env.NODE_ENV === 'production'
+        ? ['https://www.aagam.pro', 'https://artic-wolf-51cx.vercel.app']
+        : true,
+    credentials: true
+}));
+app.use(express.json({ limit: '1mb' }));
+
+// Global Rate Limiter
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+
+app.use('/api', apiLimiter);
 
 // Main Routes
 app.use('/api/auth', authRoutes);
@@ -37,6 +56,17 @@ app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Global Error Handler to prevent leaking sensitive stack traces
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    console.error('Unhandled Server Error:', err.message);
+    const isProd = process.env.NODE_ENV === 'production';
+    res.status(err.status || 500).json({
+        error: isProd ? 'Internal Server Error' : err.message,
+        // Optional: Provide request ID for tracking
+        reqId: req.headers['x-request-id'] || 'N/A'
+    });
 });
 
 // Export the app for Vercel Serverless Functions

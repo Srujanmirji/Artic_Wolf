@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
     LineChart,
     Line,
@@ -53,23 +54,13 @@ const SPARK_DATA = [
 
 export default function DashboardOverview() {
     const orgId = getDefaultOrgId();
-    const [kpis, setKpis] = useState<DashboardKpis | null>(null);
-    const [kpiError, setKpiError] = useState<string | null>(null);
+    const { data: kpis, error: queryError } = useQuery({
+        queryKey: ['kpis', orgId],
+        queryFn: () => getDashboardKpis(orgId),
+        enabled: !!orgId
+    });
 
-    useEffect(() => {
-        if (!orgId) return;
-        let active = true;
-        getDashboardKpis(orgId)
-            .then((data) => {
-                if (active) setKpis(data);
-            })
-            .catch((err) => {
-                if (active) setKpiError(err.message || "Failed to load dashboard KPIs.");
-            });
-        return () => {
-            active = false;
-        };
-    }, [orgId]);
+    const kpiError = queryError ? (queryError as Error).message : null;
 
     const totalInventoryValue = kpis?.total_inventory_value ?? FALLBACK_KPIS.total_inventory_value;
     const holdingCost = kpis?.holding_cost ?? FALLBACK_KPIS.holding_cost;

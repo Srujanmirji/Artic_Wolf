@@ -1,3 +1,5 @@
+import { syncManager } from './offlineSync';
+
 const DEFAULT_BASE_URL = "http://localhost:5000";
 
 export type DashboardKpis = {
@@ -70,8 +72,21 @@ function buildUrl(path: string) {
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = buildUrl(path);
   const headers = new Headers(options.headers);
-  if (options.body && !headers.has("Content-Type")) {
+  if (options.body && (!headers.has("Content-Type") || typeof options.body !== "string")) {
     headers.set("Content-Type", "application/json");
+  }
+
+  // Handle Offline State gracefully with Background Queueing
+  if (typeof window !== 'undefined' && !navigator.onLine) {
+    const method = (options.method || 'GET').toUpperCase();
+
+    // Only queue mutating requests
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      await syncManager.enqueueRequest(url, method, options.headers || {}, options.body ? JSON.parse(options.body as string) : null);
+      console.warn(`[Offline Queue] ${method} request to ${url} saved for later sync.`);
+      throw new Error('You are offline. Your changes have been saved locally and will sync when you reconnect.');
+    }
+    throw new Error('No internet connection. Please check your network and try again.');
   }
 
   const response = await fetch(url, {

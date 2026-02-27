@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Lightbulb, ArrowRight, Zap, CheckCircle2, Sparkles, Loader2, RefreshCw } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { getDefaultOrgId, getRecommendations, generateRecommendations, type RecommendationItem } from "@/lib/api";
@@ -96,46 +97,28 @@ function buildRecommendationCard(rec: RecommendationItem, index: number): Recomm
 
 export default function RecommendationsPage() {
     const orgId = getDefaultOrgId();
-    const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
-    const [loadError, setLoadError] = useState<string | null>(null);
-    const [isGenerating, setIsGenerating] = useState(false);
+    const queryClient = useQueryClient();
 
-    const loadData = (active: { current: boolean }) => {
-        if (!orgId) return;
-        getRecommendations(orgId)
-            .then((data) => {
-                if (active.current) setRecommendations(data || []);
-            })
-            .catch((err) => {
-                if (active.current) setLoadError(err.message || "Failed to load recommendations.");
-            });
-    };
+    const { data: recommendationsData, error: queryError, isLoading } = useQuery({
+        queryKey: ['recommendations', orgId],
+        queryFn: () => getRecommendations(orgId),
+        enabled: !!orgId
+    });
 
-    useEffect(() => {
-        const active = { current: true };
-        loadData(active);
-        return () => { active.current = false; };
-    }, [orgId]);
-
-    const handleGenerate = async () => {
-        if (!orgId || isGenerating) return;
-        setIsGenerating(true);
-        setLoadError(null);
-        try {
-            await generateRecommendations(orgId);
-            // Refresh the recommendations list after generating them
-            loadData({ current: true });
-        } catch (err: any) {
-            setLoadError(err.message || "Failed to generate insights.");
-        } finally {
-            setIsGenerating(false);
+    const generateMutation = useMutation({
+        mutationFn: () => generateRecommendations(orgId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['recommendations', orgId] });
         }
-    };
+    });
+
+    const loadError = queryError ? (queryError as Error).message : generateMutation.error ? (generateMutation.error as Error).message : null;
+    const isGenerating = generateMutation.isPending;
 
     const cards = useMemo(() => {
-        if (!recommendations.length) return FALLBACK_CARDS;
-        return recommendations.map(buildRecommendationCard);
-    }, [recommendations]);
+        if (!recommendationsData || !recommendationsData.length) return FALLBACK_CARDS;
+        return recommendationsData.map(buildRecommendationCard);
+    }, [recommendationsData]);
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -154,7 +137,7 @@ export default function RecommendationsPage() {
                 </div>
                 <div className="relative z-10 flex flex-col sm:flex-row gap-3 flex-shrink-0">
                     <button
-                        onClick={handleGenerate}
+                        onClick={() => generateMutation.mutate()}
                         disabled={isGenerating || !orgId}
                         className="bg-theme-800/60 border border-theme-500/30 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-theme-700/80 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                     >

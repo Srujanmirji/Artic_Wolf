@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
-
+import { useAuthStore } from "@/store/useAuthStore";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
 
@@ -46,6 +46,7 @@ interface SignInPageProps {
 
 function SignInContent({ className }: SignInPageProps) {
   const router = useRouter();
+  const loginStore = useAuthStore((state) => state.login);
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -60,8 +61,13 @@ function SignInContent({ className }: SignInPageProps) {
         const userInfo = await userInfoRes.json();
         console.log('Google user info:', userInfo);
 
-        // Save to localStorage
-        localStorage.setItem('userProfile', JSON.stringify(userInfo));
+        loginStore({
+          id: userInfo.id,
+          email: userInfo.email,
+          name: userInfo.name,
+          picture: userInfo.picture,
+          authProvider: 'google'
+        });
 
         router.push('/dashboard');
       } catch (err) {
@@ -137,6 +143,18 @@ function SignInContent({ className }: SignInPageProps) {
         if (error) {
           setErrorMsg(error.message);
         } else {
+          // Hydrate Store for Supabase OTP users
+          if (data.session?.user) {
+            const meta = data.session.user.user_metadata;
+            loginStore({
+              id: data.session.user.id,
+              email: data.session.user.email,
+              name: `${meta?.first_name || ''} ${meta?.last_name || ''}`.trim() || meta?.full_name || meta?.name || 'User',
+              picture: meta?.avatar_url || meta?.picture,
+              authProvider: 'supabase'
+            });
+          }
+
           setReverseCanvasVisible(true);
           setTimeout(() => {
             setInitialCanvasVisible(false);

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, Filter, MoreHorizontal, ArrowDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { getDefaultOrgId, getInventoryList, type InventoryItem } from "@/lib/api";
@@ -17,25 +18,16 @@ const INVENTORY_DATA: InventoryItem[] = [
 
 export default function InventoryPage() {
     const [searchTerm, setSearchTerm] = useState("");
-    const [items, setItems] = useState<InventoryItem[]>(INVENTORY_DATA);
-    const [loadError, setLoadError] = useState<string | null>(null);
     const orgId = getDefaultOrgId();
 
-    useEffect(() => {
-        if (!orgId) return;
-        let active = true;
-        getInventoryList(orgId)
-            .then((data) => {
-                if (!active) return;
-                if (data && data.length > 0) setItems(data);
-            })
-            .catch((err) => {
-                if (active) setLoadError(err.message || "Failed to load inventory.");
-            });
-        return () => {
-            active = false;
-        };
-    }, [orgId]);
+    const { data: itemsData, error: queryError } = useQuery({
+        queryKey: ['inventory', orgId],
+        queryFn: () => getInventoryList(orgId),
+        enabled: !!orgId
+    });
+
+    const loadError = queryError ? (queryError as Error).message : null;
+    const items = itemsData || INVENTORY_DATA;
 
     const filteredItems = useMemo(() => {
         if (!searchTerm) return items;

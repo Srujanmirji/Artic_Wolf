@@ -1,8 +1,22 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { supabase } from '../services/supabaseClient';
 import { runExpenseHandler, runExpenseBulkHandler } from '../controllers/expenseController';
+import { validateRequest } from '../middleware/validateRequest';
 
 const router = Router();
+
+const uploadSchema = z.object({
+    body: z.object({
+        organization_id: z.string().uuid(),
+        warehouse_id: z.string().uuid(),
+        rows: z.array(z.object({
+            product_id: z.string().uuid(),
+            date: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Invalid date format" }),
+            quantity_sold: z.number().int().nonnegative()
+        }))
+    })
+});
 
 function toNumber(value: unknown): number {
     const num = typeof value === 'number' ? value : Number(value || 0);
@@ -10,12 +24,9 @@ function toNumber(value: unknown): number {
 }
 
 // /api/sales/upload
-router.post('/upload', async (req, res) => {
+router.post('/upload', validateRequest(uploadSchema), async (req, res) => {
     try {
         const { organization_id, warehouse_id, rows } = req.body;
-        if (!organization_id || !warehouse_id || !rows) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
 
         // Decorate rows with IDs before insert
         const insertRows = rows.map((row: any) => ({

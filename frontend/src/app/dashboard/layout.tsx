@@ -85,11 +85,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <Image
                                 src="/aagam-logo.png"
                                 alt="Aagam AI"
-                                width={32}
-                                height={32}
+                                width={120}
+                                height={120}
                                 className="drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] rounded-full"
                             />
-                            <span className="text-xl font-bold tracking-tight text-white">Aagam AI</span>
                         </div>
 
                         {/* Search Pill */}

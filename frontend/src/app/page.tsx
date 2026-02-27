@@ -198,11 +198,10 @@ function SignInContent({ className }: SignInPageProps) {
                   <Image
                     src="/aagam-logo.png"
                     alt="Aagam AI"
-                    width={48}
-                    height={48}
+                    width={180}
+                    height={180}
                     className="drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] rounded-full"
                   />
-                  <span className="text-3xl font-bold tracking-tight text-white drop-shadow-md">Aagam AI</span>
                 </div>
               </div>
 

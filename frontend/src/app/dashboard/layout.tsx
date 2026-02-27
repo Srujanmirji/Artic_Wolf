@@ -81,18 +81,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <header className="flex items-center justify-between px-8 py-6 relative z-10 shrink-0">
                     <div className="flex items-center gap-12">
                         {/* Logo */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 shrink-0">
                             <Image
                                 src="/aagam-logo.png"
                                 alt="Aagam AI"
-                                width={120}
-                                height={120}
-                                className="drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] rounded-full"
+                                width={160}
+                                height={160}
+                                className="drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)] object-contain"
+                                priority
                             />
                         </div>
 
                         {/* Search Pill */}
-                        <div className="relative group hidden md:block">
+                        <div className="relative group hidden md:block shrink-0">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-theme-300" size={18} />
                             <input
                                 type="text"

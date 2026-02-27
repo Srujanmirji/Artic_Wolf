@@ -8,6 +8,10 @@ import scenarioRoutes from './routes/scenarioRoutes';
 import newsRoutes from './routes/newsRoutes';
 import recommendationRoutes from './routes/recommendationRoutes';
 import syncRoutes from './routes/syncRoutes';
+import sentimentRoutes from './routes/sentimentRoutes';
+import newsImpactRoutes from './routes/newsImpactRoutes';
+import transferRoutes from './routes/transferRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
 
 dotenv.config();
 
@@ -26,6 +30,10 @@ app.use('/api/scenario', scenarioRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/sentiment', sentimentRoutes);
+app.use('/api/news-impact', newsImpactRoutes);
+app.use('/api/transfer', transferRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });

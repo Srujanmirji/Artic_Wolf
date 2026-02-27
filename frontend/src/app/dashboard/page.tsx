@@ -1,144 +1,304 @@
-"use client"
+"use client";
 
-import { useInventory, useNews } from '../hooks/useDataFetching';
-import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { AlertCircle, WifiOff, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
-import { idb } from '../utils/idb';
-import { v4 as uuidv4 } from 'uuid';
+import React, { useEffect, useState } from "react";
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    BarChart,
+    Bar
+} from "recharts";
+import { cn } from "@/lib/utils";
+import { getDashboardKpis, getDefaultOrgId, type DashboardKpis } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
+import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 
-export default function Dashboard() {
-    const { metrics, loading: metricsLoading } = useInventory();
-    const { news, loading: newsLoading } = useNews();
-    const isOnline = useOnlineStatus();
-    const [uploading, setUploading] = useState(false);
+const FORECAST_DATA = [
+    { name: 'Jan', forecast: 4000, actual: 4400 },
+    { name: 'Feb', forecast: 3000, actual: 3200 },
+    { name: 'Mar', forecast: 2000, actual: 2800 },
+    { name: 'Apr', forecast: 2780, actual: 2908 },
+    { name: 'May', forecast: 1890, actual: 1800 },
+    { name: 'Jun', forecast: 2390, actual: 2500 },
+    { name: 'Jul', forecast: 3490, actual: 3600 },
+];
 
-    // MOCK data for the chart based off metrics
-    const chartData = metrics?.length > 0 ? metrics.map(m => ({
-        name: m.product_id.substring(0, 4), // mock label
-        demand: m.forecast_demand,
-        safetyStock: m.safety_stock,
-    })) : [
-        { name: 'ProdA', demand: 120, safetyStock: 20 },
-        { name: 'ProdB', demand: 85, safetyStock: 15 },
-        { name: 'ProdC', demand: 210, safetyStock: 40 },
-    ];
+const FALLBACK_KPIS = {
+    total_inventory_value: 2400000,
+    projected_stockouts: 7,
+    holding_cost: 184000,
+    cost_savings: 52000
+};
 
-    const handleOfflineUpload = async () => {
-        setUploading(true);
-        const op = {
-            op_id: uuidv4(),
-            type: 'sales_upload',
-            payload: { warehouse_id: 'wh-1', rows: [{ product_id: 'pd-1', date: new Date().toISOString(), quantity_sold: 10 }] },
-            created_at: new Date().toISOString(),
-            retry_count: 0
+const INVENTORY_BREAKDOWN = [
+    { name: 'Electronics', value: 400, color: '#4A5C6A' }, // theme-500
+    { name: 'Apparel', value: 300, color: '#9BA8AB' }, // theme-300
+    { name: 'Home Goods', value: 300, color: '#CCD0CF' }, // theme-100
+    { name: 'Other', value: 200, color: '#253745' }, // theme-700
+];
+
+const RECENT_ORDERS = [
+    { id: 1, name: 'Logistics Pro', type: 'Restock', amount: '-$12,400', date: 'Today, 09:24', icon: 'LP', color: 'bg-theme-500/20 text-theme-100' },
+    { id: 2, name: 'TechSupply Inc', type: 'Fulfillment', amount: '-$8,250', date: 'Yesterday', icon: 'TS', color: 'bg-theme-300/20 text-white' },
+    { id: 3, name: 'Global Freight', type: 'Shipping', amount: '-$3,100', date: 'Mar 12', icon: 'GF', color: 'bg-theme-700/40 text-theme-300' },
+];
+
+const SPARK_DATA = [
+    { val: 10 }, { val: 25 }, { val: 15 }, { val: 40 }, { val: 30 }, { val: 50 }, { val: 45 }
+];
+
+export default function DashboardOverview() {
+    const orgId = getDefaultOrgId();
+    const [kpis, setKpis] = useState<DashboardKpis | null>(null);
+    const [kpiError, setKpiError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!orgId) return;
+        let active = true;
+        getDashboardKpis(orgId)
+            .then((data) => {
+                if (active) setKpis(data);
+            })
+            .catch((err) => {
+                if (active) setKpiError(err.message || "Failed to load dashboard KPIs.");
+            });
+        return () => {
+            active = false;
         };
+    }, [orgId]);
 
-        await idb.put('pending_changes', op);
-
-        // If online, triggers fetch right away ideally, but let's mock the UI response
-        setTimeout(() => {
-            setUploading(false);
-            alert(isOnline ? "Uploaded successfully" : "Added to pending queue (Offline Mode)");
-        }, 500);
-    };
+    const totalInventoryValue = kpis?.total_inventory_value ?? FALLBACK_KPIS.total_inventory_value;
+    const holdingCost = kpis?.holding_cost ?? FALLBACK_KPIS.holding_cost;
+    const costSavings = kpis?.cost_savings ?? FALLBACK_KPIS.cost_savings;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 p-4 md:p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 pb-10">
 
-                {/* Header and Controls */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-                    <div>
-                        <h1 className="text-3xl font-bold dark:text-zinc-50">Operations Dashboard</h1>
-                        <div className="flex items-center gap-2 mt-2">
-                            {isOnline ? (
-                                <span className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                                    <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300">
-                                    <WifiOff className="w-3 h-3" /> Offline (Changes Queued)
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                    <div className="mt-4 md:mt-0 flex gap-3">
-                        <button
-                            onClick={handleOfflineUpload}
-                            disabled={uploading}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
-                        >
-                            {uploading ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Upload Sales CSV"}
+            {/* Header / Tabs */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+                <h2 className="text-3xl font-bold text-white tracking-tight">My Dashboard</h2>
+                <div className="flex bg-theme-800/40 p-1.5 rounded-full border border-theme-700/50 backdrop-blur-md overflow-x-auto no-scrollbar w-max max-w-full">
+                    {['All', 'Electronics', 'Apparel', 'Home Goods'].map((tab, i) => (
+                        <button key={tab} className={cn(
+                            "px-5 py-2 text-sm font-medium transition-all rounded-full whitespace-nowrap",
+                            i === 0
+                                ? "bg-theme-500/20 text-theme-100 shadow-[0_0_15px_rgba(74,92,106,0.15)]"
+                                : "text-theme-300 hover:text-white hover:bg-theme-700/30"
+                        )}>
+                            {tab}
                         </button>
-                    </div>
+                    ))}
                 </div>
+            </div>
+            {!orgId && (
+                <p className="text-xs text-theme-500">Set NEXT_PUBLIC_ORG_ID to load live data.</p>
+            )}
+            {kpiError && (
+                <p className="text-xs text-theme-500">{kpiError}</p>
+            )}
 
-                {/* Top Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm">
-                        <h3 className="text-sm font-medium text-gray-500 dark:text-zinc-400">Total Products Tracked</h3>
-                        <p className="text-3xl font-bold mt-2 dark:text-white">{metrics?.length || 45}</p>
-                    </div>
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm">
-                        <h3 className="text-sm font-medium text-gray-500 dark:text-zinc-400">Stockout Risk (High)</h3>
-                        <p className="text-3xl font-bold mt-2 text-red-600 dark:text-red-400">3 SKUs</p>
-                    </div>
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm">
-                        <h3 className="text-sm font-medium text-gray-500 dark:text-zinc-400">Avg Safety Stock</h3>
-                        <p className="text-3xl font-bold mt-2 dark:text-white">18%</p>
-                    </div>
-                </div>
+            {/* Main Grid Layout */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Chart Section */}
-                    <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm h-96">
-                        <h3 className="text-lg font-bold mb-4 dark:text-zinc-50">Demand Forecast vs Safety Stock</h3>
-                        <ResponsiveContainer width="100%" height="85%">
-                            <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
-                                <XAxis dataKey="name" stroke="#9CA3AF" />
-                                <YAxis stroke="#9CA3AF" />
-                                <Tooltip contentStyle={{ backgroundColor: '#18181B', border: 'none', borderRadius: '8px', color: '#fff' }} />
-                                <Line type="monotone" dataKey="demand" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 8 }} />
-                                <Line type="monotone" dataKey="safetyStock" stroke="#10B981" strokeWidth={3} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
+                {/* LEFT COLUMN (Spans 2) */}
+                <div className="xl:col-span-2 space-y-6 flex flex-col">
 
-                    {/* News Feed Section */}
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col">
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 dark:text-zinc-50">
-                            Market Intelligence
-                        </h3>
-                        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                            {newsLoading ? (
-                                <div className="animate-pulse space-y-4">
-                                    <div className="h-20 bg-gray-200 dark:bg-zinc-800 rounded"></div>
-                                    <div className="h-20 bg-gray-200 dark:bg-zinc-800 rounded"></div>
+                    {/* Main Chart */}
+                    <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex-1 min-h-[350px]" borderRadius="2rem" blurIntensity="md">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-semibold text-white">Demand Flow</h3>
+                            <button className="text-sm text-theme-300 hover:text-white transition-colors">View All &gt;</button>
+                        </div>
+                        <div className="h-[250px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={FORECAST_DATA} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                    <defs>
+                                        <pattern id="stripe" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                                            <line x1="0" y1="0" x2="0" y2="8" stroke="#4A5C6A" strokeWidth="3" strokeOpacity="0.3" />
+                                        </pattern>
+                                        <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#9BA8AB" />
+                                            <stop offset="100%" stopColor="#4A5C6A" />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(74, 92, 106, 0.1)" vertical={false} />
+                                    <XAxis dataKey="name" stroke="#9BA8AB" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                                    <YAxis stroke="#9BA8AB" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${val / 1000}k`} />
+                                    <Tooltip
+                                        cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                                        contentStyle={{ backgroundColor: '#11212D', borderColor: '#253745', borderRadius: '12px', color: '#fff' }}
+                                    />
+                                    <Bar dataKey="forecast" fill="url(#stripe)" radius={[8, 8, 8, 8]} barSize={40} />
+                                    {/* Simulated "active" bar overlaying using actual data */}
+                                    <Bar dataKey="actual" fill="url(#purpleGradient)" radius={[8, 8, 8, 8]} barSize={40} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </LiquidGlassCard>
+
+                    {/* Bottom Row inside Left Column */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+
+                        {/* Donut Chart Component */}
+                        <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex flex-col justify-center" borderRadius="2rem" blurIntensity="md">
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-lg font-semibold text-white">Available By Category</h3>
+                                <button className="text-sm text-theme-300 hover:text-white transition-colors">View All &gt;</button>
+                            </div>
+                            <div className="flex-1 flex items-center justify-center relative min-h-[180px]">
+                                {/* Custom CSS Donut representation since Recharts PieChart takes complex setup */}
+                                <div className="relative w-40 h-40">
+                                    <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 drop-shadow-lg">
+                                        {/* Outer track */}
+                                        <circle cx="50" cy="50" r="40" fill="transparent" stroke="#11212D" strokeWidth="12" />
+                                        {/* Emerald segment replacement (Theme-500) */}
+                                        <circle cx="50" cy="50" r="40" fill="transparent" stroke="#4A5C6A" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset="100.48" strokeLinecap="round" />
+                                        {/* Violet segment replacement (Theme-300) */}
+                                        <circle cx="50" cy="50" r="40" fill="transparent" stroke="#9BA8AB" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset="200" strokeLinecap="round" className="-rotate-45 origin-center" />
+                                        {/* Yellow segment replacement (Theme-100) */}
+                                        <circle cx="50" cy="50" r="40" fill="transparent" stroke="#CCD0CF" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset="220" strokeLinecap="round" className="rotate-[120deg] origin-center" />
+                                    </svg>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span className="text-xl font-bold text-white">{formatCurrency(totalInventoryValue, { notation: "compact", maximumFractionDigits: 1 })}</span>
+                                        <span className="text-xs text-theme-300">Total Value</span>
+                                    </div>
                                 </div>
-                            ) : (
-                                (news?.length ? news : [
-                                    { id: '1', title: 'Supply Chain Component Shortages Easing', impact: 0.12, sentiment_score: 0.6 },
-                                    { id: '2', title: 'Port Strikes threaten Holiday Deliveries', impact: -0.24, sentiment_score: -0.8 }
-                                ]).map((item: any) => (
-                                    <div key={item.id} className="p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-lg border border-gray-100 dark:border-zinc-800 relative">
-                                        <h4 className="text-sm font-semibold dark:text-zinc-200 pr-8">{item.title}</h4>
-                                        <div className="mt-2 flex items-center justify-between text-xs font-medium">
-                                            <span className={item.sentiment_score > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                                                Sentiment: {(item.sentiment_score * 100).toFixed(0)}%
-                                            </span>
-                                            <span className="text-blue-600 dark:text-blue-400">
-                                                Impact: {(item.impact * 100).toFixed(1)}%
-                                            </span>
+                            </div>
+                        </LiquidGlassCard>
+
+                        {/* KPI Stack */}
+                        <div className="flex flex-col gap-6">
+                            <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex-1 flex flex-col justify-center relative overflow-hidden group" borderRadius="2rem" blurIntensity="md">
+                                <div className="absolute -right-4 -top-4 w-24 h-24 bg-theme-500/10 rounded-full blur-xl group-hover:bg-theme-500/20 transition-all" />
+                                <div className="flex justify-between items-start mb-2 relative z-10">
+                                    <h3 className="text-white font-medium">Holding Cost</h3>
+                                    <button className="text-theme-300 hover:text-white">...</button>
+                                </div>
+                                <div className="text-3xl font-bold text-theme-100 mb-1 relative z-10">{formatCurrency(holdingCost, { notation: "compact", maximumFractionDigits: 1 })}</div>
+                                <div className="flex justify-between items-center relative z-10">
+                                    <p className="text-xs text-theme-300">This month's cost</p>
+                                    <span className="bg-theme-500/20 text-theme-300 text-xs font-semibold px-2 py-0.5 rounded-full">-8.2%</span>
+                                </div>
+                            </LiquidGlassCard>
+
+                            <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex-1 flex flex-col justify-center relative overflow-hidden group" borderRadius="2rem" blurIntensity="md">
+                                <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-theme-300/10 rounded-full blur-xl group-hover:bg-theme-300/20 transition-all" />
+                                <div className="flex justify-between items-start mb-2 relative z-10">
+                                    <h3 className="text-white font-medium">Cost Savings</h3>
+                                    <button className="text-theme-300 hover:text-white">...</button>
+                                </div>
+                                <div className="text-3xl font-bold text-white mb-1 relative z-10">{formatCurrency(costSavings, { notation: "compact", maximumFractionDigits: 1 })}</div>
+                                <div className="flex justify-between items-center relative z-10">
+                                    <p className="text-xs text-theme-300">This month's saving</p>
+                                    <span className="bg-theme-300/20 text-theme-100 text-xs font-semibold px-2 py-0.5 rounded-full">+24%</span>
+                                </div>
+                            </LiquidGlassCard>
+                        </div>
+
+                    </div>
+                </div>
+
+
+                {/* RIGHT COLUMN (Spans 1) */}
+                <div className="space-y-6 flex flex-col">
+
+                    {/* Glassmorphic Gradient Card (My Card equivalent) */}
+                    <LiquidGlassCard className="border border-theme-700/40 p-2 shadow-xl relative overflow-hidden h-[330px]" borderRadius="2.5rem" blurIntensity="md">
+                        {/* Background structural glow */}
+                        <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-theme-700/20 to-transparent pointer-events-none" />
+
+                        {/* The actual "Card" inside */}
+                        <div className="bg-gradient-to-br from-theme-500 via-theme-700 to-theme-900 h-48 rounded-[2rem] p-6 relative overflow-hidden shadow-[0_10px_30px_rgba(37,55,69,0.3)] transform transition-transform hover:-translate-y-1">
+                            {/* Card abstract shapes */}
+                            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+                            <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-theme-300/30 rounded-full blur-xl" />
+
+                            <div className="relative z-10 flex justify-between items-start mb-6">
+                                <span className="text-theme-100 text-sm font-medium opacity-90">Total Value</span>
+                                <button className="bg-white/20 hover:bg-white/30 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors shadow-sm">
+                                    <span className="text-lg leading-none">+</span>
+                                </button>
+                            </div>
+                            <div className="relative z-10 text-4xl font-black tracking-tight text-white drop-shadow-md">
+                                {formatCurrency(totalInventoryValue, { notation: "compact", maximumFractionDigits: 1 })}
+                            </div>
+                            <div className="relative z-10 mt-6 flex justify-between items-center text-theme-100/70 text-xs tracking-wider font-mono">
+                                <span>4358 4445 0968 2323</span>
+                                <span>08/24</span>
+                            </div>
+                        </div>
+
+                        {/* Bottom half of the visual card structure in the image */}
+                        <div className="px-5 py-4 relative z-10">
+                            <div className="flex justify-between items-center">
+                                <span className="text-white font-medium">My Inventory</span>
+                                <button className="text-xs text-theme-300 hover:text-white transition-colors">View All &gt;</button>
+                            </div>
+                            <div className="mt-4 flex gap-2">
+                                {/* Skeleton visual indicators for the sub-cards effect seen in the image */}
+                                <div className="h-10 w-full bg-theme-700/30 rounded-xl" />
+                                <div className="h-10 w-full bg-theme-700/10 rounded-xl" />
+                            </div>
+                        </div>
+                    </LiquidGlassCard>
+
+                    {/* Transactions List */}
+                    <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex-1" borderRadius="2rem" blurIntensity="md">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-semibold text-white">Recent Orders</h3>
+                            <button className="text-sm text-theme-300 hover:text-white transition-colors">View All &gt;</button>
+                        </div>
+                        <div className="space-y-5">
+                            {RECENT_ORDERS.map((order) => (
+                                <div key={order.id} className="flex items-center justify-between group hover:bg-theme-700/20 p-2 -mx-2 rounded-xl transition-colors cursor-pointer">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${order.color}`}>
+                                            {order.icon}
+                                        </div>
+                                        <div>
+                                            <p className="text-white font-medium text-sm">{order.name}</p>
+                                            <p className="text-theme-500 text-xs">{order.type}</p>
                                         </div>
                                     </div>
-                                ))
-                            )}
+                                    <div className="text-right">
+                                        <p className="text-white font-medium text-sm group-hover:text-theme-300 transition-colors">{order.amount}</p>
+                                        <p className="text-theme-500 text-xs">{order.date}</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
+                    </LiquidGlassCard>
+
+                    {/* Bottom Mini Widgets */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex flex-col justify-between hover:border-theme-500/30 transition-colors cursor-pointer" borderRadius="2rem" blurIntensity="md">
+                            <p className="text-sm font-medium text-white mb-2 relative z-10">Team Access</p>
+                            <p className="text-xs text-theme-300 mb-4 line-clamp-2 relative z-10">Manage permissions &amp; invite members</p>
+                            <div className="flex -space-x-2 relative z-10">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-300 to-theme-500 border-2 border-theme-800 z-30" />
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-500 to-theme-700 border-2 border-theme-800 z-20" />
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-100 to-theme-300 border-2 border-theme-800 z-10" />
+                            </div>
+                        </LiquidGlassCard>
+
+                        <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex flex-col justify-between group" borderRadius="2rem" blurIntensity="md">
+                            <p className="text-sm font-medium text-white mb-3">Efficiency</p>
+                            <div className="h-12 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={SPARK_DATA}>
+                                        <Line type="monotone" dataKey="val" stroke="#4A5C6A" strokeWidth={3} dot={false} strokeLinecap="round" />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </LiquidGlassCard>
                     </div>
+
                 </div>
+
             </div>
         </div>
     );

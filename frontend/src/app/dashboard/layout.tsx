@@ -18,17 +18,22 @@ import {
     LogOut
 } from "lucide-react";
 
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import "@/i18n/config";
+
 const SIDEBAR_LINKS = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Inventory", href: "/dashboard/inventory", icon: Package },
-    { name: "Forecast", href: "/dashboard/forecast", icon: TrendingUp },
-    { name: "News Intelligence", href: "/dashboard/news", icon: Newspaper },
-    { name: "Recommendations", href: "/dashboard/recommendations", icon: Lightbulb },
-    { name: "Settings", href: "/dashboard/settings", icon: Settings },
+    { name: "nav.overview", href: "/dashboard", icon: LayoutDashboard },
+    { name: "nav.inventory", href: "/dashboard/inventory", icon: Package },
+    { name: "nav.forecast", href: "/dashboard/forecast", icon: TrendingUp },
+    { name: "nav.news", href: "/dashboard/news", icon: Newspaper },
+    { name: "nav.recommendations", href: "/dashboard/recommendations", icon: Lightbulb },
+    { name: "nav.settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const { t, ready } = useTranslation();
     const [userProfile, setUserProfile] = useState<any>(null);
 
     const loadProfile = async () => {
@@ -104,8 +109,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     <div className="flex items-center gap-4">
+                        <LanguageSwitcher />
                         <span className="text-theme-300 font-medium hidden sm:block">
-                            Hi {userProfile?.given_name || userProfile?.name?.split(' ')[0] || 'User'}!
+                            {t('greeting', { name: userProfile?.given_name || userProfile?.name?.split(' ')[0] || 'User' })}
                         </span>
                         <div className="relative cursor-pointer hover:ring-2 hover:ring-theme-500/50 rounded-full transition-all">
                             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-theme-300 to-theme-500 border-2 border-theme-800 flex items-center justify-center text-sm font-bold text-theme-900 overflow-hidden">
@@ -136,7 +142,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                                 ? "bg-theme-100 text-theme-900 shadow-[0_0_15px_rgba(204,208,207,0.3)]"
                                                 : "text-theme-300 hover:bg-theme-700/50 hover:text-white"
                                         )}
-                                        title={link.name}
+                                        title={ready ? t(link.name) : link.name}
                                     >
                                         <link.icon size={22} className={cn("transition-transform group-hover:scale-110")} strokeWidth={isActive ? 2.5 : 2} />
                                     </Link>

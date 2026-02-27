@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.SITE_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000"
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "http://localhost:3000"
   ),
   title: {
     default: "Aagam AI | Inventory Intelligence",
@@ -70,6 +70,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { I18nProvider } from "@/components/I18nProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -81,7 +83,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        {children}
+        <I18nProvider>
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

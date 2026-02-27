@@ -108,6 +108,13 @@ export function getLatestNews(orgId: string, region?: string, industry?: string)
   return apiFetch<NewsItem[]>(`/api/news/latest?${params.toString()}`);
 }
 
+export function fetchMarketIntelligence(orgId: string, region?: string, industry?: string) {
+  return apiFetch<any>('/api/news/fetch', {
+    method: 'POST',
+    body: JSON.stringify({ organization_id: orgId, region, industry }),
+  });
+}
+
 export function getRecommendations(orgId: string) {
   return apiFetch<RecommendationItem[]>(`/api/recommendations?org=${encodeURIComponent(orgId)}`);
 }

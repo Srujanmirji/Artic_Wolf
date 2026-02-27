@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Clock, TrendingUp, AlertCircle } from "lucide-react";
+import { ExternalLink, Clock, TrendingUp, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
-import { getDefaultOrgId, getLatestNews, type NewsItem } from "@/lib/api";
+import { getDefaultOrgId, getLatestNews, fetchMarketIntelligence, type NewsItem } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 
 type NewsCard = {
@@ -83,21 +83,39 @@ export default function NewsIntelligencePage() {
     const orgId = getDefaultOrgId();
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [isFetching, setIsFetching] = useState(false);
 
-    useEffect(() => {
+    const loadData = (active: { current: boolean }) => {
         if (!orgId) return;
-        let active = true;
         getLatestNews(orgId)
             .then((data) => {
-                if (active) setNewsItems(data || []);
+                if (active.current) setNewsItems(data || []);
             })
             .catch((err) => {
-                if (active) setLoadError(err.message || "Failed to load news.");
+                if (active.current) setLoadError(err.message || "Failed to load news.");
             });
-        return () => {
-            active = false;
-        };
+    };
+
+    useEffect(() => {
+        const active = { current: true };
+        loadData(active);
+        return () => { active.current = false; };
     }, [orgId]);
+
+    const handleFetch = async () => {
+        if (!orgId || isFetching) return;
+        setIsFetching(true);
+        setLoadError(null);
+        try {
+            await fetchMarketIntelligence(orgId);
+            // Refresh the list after fetching new articles
+            loadData({ current: true });
+        } catch (err: any) {
+            setLoadError(err.message || "Failed to fetch top market insights.");
+        } finally {
+            setIsFetching(false);
+        }
+    };
 
     const cards = useMemo(() => {
         if (!newsItems.length) return FALLBACK_NEWS;
@@ -112,9 +130,19 @@ export default function NewsIntelligencePage() {
                     <h2 className="text-2xl font-bold text-white tracking-tight">Market Intelligence</h2>
                     <p className="text-theme-300 mt-1">Real-time alerts and news impacting your supply chain</p>
                 </div>
-                <div className="bg-theme-800/60 flex p-1 rounded-lg border border-theme-500/30">
-                    <button className="px-4 py-1.5 text-sm font-medium bg-theme-500/40 text-white rounded-md shadow-sm">Latest</button>
-                    <button className="px-4 py-1.5 text-sm font-medium text-theme-300 hover:text-white transition-colors">Saved</button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleFetch}
+                        disabled={isFetching || !orgId}
+                        className="bg-theme-800/60 border border-theme-500/30 text-white px-4 py-2 rounded-lg font-medium hover:bg-theme-700/80 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                    >
+                        {isFetching ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                        <span className="hidden sm:inline">{isFetching ? "Analyzing..." : "Refresh Intelligence"}</span>
+                    </button>
+                    <div className="bg-theme-800/60 flex p-1 rounded-lg border border-theme-500/30">
+                        <button className="px-4 py-1.5 text-sm font-medium bg-theme-500/40 text-white rounded-md shadow-sm">Latest</button>
+                        <button className="px-4 py-1.5 text-sm font-medium text-theme-300 hover:text-white transition-colors">Saved</button>
+                    </div>
                 </div>
             </div>
             {!orgId && (

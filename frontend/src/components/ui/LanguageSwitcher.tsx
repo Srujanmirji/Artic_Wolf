@@ -6,6 +6,9 @@ const LANGUAGES = [
     { code: 'en', label: 'English' },
     { code: 'es', label: 'Español' },
     { code: 'fr', label: 'Français' },
+    { code: 'hi', label: 'हिंदी (Hindi)' },
+    { code: 'kn', label: 'ಕನ್ನಡ (Kannada)' },
+    { code: 'mr', label: 'मराठी (Marathi)' },
 ];
 
 export function LanguageSwitcher() {

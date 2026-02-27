@@ -75,6 +75,78 @@ const resources = {
                 "logout": "Déconnexion"
             }
         }
+    },
+    hi: {
+        translation: {
+            "greeting": "नमस्ते {{name}}!",
+            "dashboard_title": "Agam AI इनसाइट्स",
+            "nav": {
+                "overview": "अवलोकन",
+                "inventory": "इन्वेंट्री",
+                "forecast": "पूर्वानुमान",
+                "recommendations": "सिफारिशें",
+                "scenarios": "परिदृश्य",
+                "news": "बाज़ार बुद्धिमत्ता",
+                "settings": "सेटिंग्स"
+            },
+            "common": {
+                "search_placeholder": "खोजें...",
+                "auto_apply": "सभी स्वतः लागू करें",
+                "generate_insights": "इनसाइट्स उत्पन्न करें",
+                "analyzing": "विश्लेषण हो रहा है...",
+                "latest": "नवीनतम",
+                "saved": "सहेजा गया",
+                "logout": "साइन आउट करें"
+            }
+        }
+    },
+    kn: {
+        translation: {
+            "greeting": "ನಮಸ್ಕಾರ {{name}}!",
+            "dashboard_title": "ಆಗಮ್ ಎಐ ಒಳನೋಟಗಳು",
+            "nav": {
+                "overview": "ಅವಲೋಕನ",
+                "inventory": "ದಾಸ್ತಾನು",
+                "forecast": "ಮುನ್ಸೂಚನೆ",
+                "recommendations": "ಶಿಫಾರಸುಗಳು",
+                "scenarios": "ಸನ್ನಿವೇಶಗಳು",
+                "news": "ಮಾರುಕಟ್ಟೆ ಬುದ್ಧಿಮತ್ತೆ",
+                "settings": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು"
+            },
+            "common": {
+                "search_placeholder": "ಹುಡುಕಿ...",
+                "auto_apply": "ಎಲ್ಲವನ್ನೂ ಸ್ವಯಂ ಅನ್ವಯಿಸಿ",
+                "generate_insights": "ಒಳನೋಟಗಳನ್ನು ರಚಿಸಿ",
+                "analyzing": "ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ...",
+                "latest": "ಇತ್ತೀಚಿನ",
+                "saved": "ಉಳಿಸಲಾಗಿದೆ",
+                "logout": "ಸೈನ್ ಔಟ್ ಮಾಡಿ"
+            }
+        }
+    },
+    mr: {
+        translation: {
+            "greeting": "नमस्कार {{name}}!",
+            "dashboard_title": "आगम एआय इनसाइट्स",
+            "nav": {
+                "overview": "आढावा",
+                "inventory": "इन्व्हेंटरी",
+                "forecast": "अंदाज",
+                "recommendations": "शिफारसी",
+                "scenarios": "परिस्थिती",
+                "news": "मार्केट इंटेलिजेंस",
+                "settings": "सेटिंग्ज"
+            },
+            "common": {
+                "search_placeholder": "शोधा...",
+                "auto_apply": "सर्व स्वयं लागू करा",
+                "generate_insights": "इनसाइट्स व्युत्पन्न करा",
+                "analyzing": "विश्लेषण करत आहे...",
+                "latest": "नवीनतम",
+                "saved": "जतन केले",
+                "logout": "साइन आउट करा"
+            }
+        }
     }
 };
 

@@ -49,6 +49,20 @@ function determineAction(current_stock: number, reorder_point: number, safety_st
     };
 }
 
+async function getLatestMetric(organization_id: string, product_id: string, warehouse_id: string) {
+    const { data, error } = await supabase
+        .from('inventory_metrics')
+        .select('reorder_point, safety_stock, calculated_at')
+        .eq('organization_id', organization_id)
+        .eq('product_id', product_id)
+        .eq('warehouse_id', warehouse_id)
+        .order('calculated_at', { ascending: false })
+        .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+}
+
 export async function runRecommendation(input: RecommendationInput): Promise<RecommendationResult> {
     const { organization_id, product_id, warehouse_id } = input;
 
@@ -76,15 +90,7 @@ export async function runRecommendation(input: RecommendationInput): Promise<Rec
         return sum + toNumber(row.current_stock);
     }, 0);
 
-    const { data: metricRow, error: metricError } = await supabase
-        .from('inventory_metrics')
-        .select('reorder_point, safety_stock')
-        .eq('organization_id', organization_id)
-        .eq('product_id', product_id)
-        .eq('warehouse_id', warehouse_id)
-        .maybeSingle();
-
-    if (metricError) throw metricError;
+    const metricRow = await getLatestMetric(organization_id, product_id, warehouse_id);
     if (!metricRow) {
         throw new Error('Inventory metrics not found for product and warehouse');
     }

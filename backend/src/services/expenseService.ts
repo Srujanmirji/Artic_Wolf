@@ -24,6 +24,57 @@ function validPositiveNumber(value: unknown): value is number {
     return typeof value === 'number' && !Number.isNaN(value) && value > 0;
 }
 
+async function getLatestMetricRow(organization_id: string, product_id: string, warehouse_id: string) {
+    const { data, error } = await supabase
+        .from('inventory_metrics')
+        .select('forecast_demand, calculated_at')
+        .eq('organization_id', organization_id)
+        .eq('product_id', product_id)
+        .eq('warehouse_id', warehouse_id)
+        .order('calculated_at', { ascending: false })
+        .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+}
+
+async function upsertLatestCostRow(
+    organization_id: string,
+    product_id: string,
+    warehouse_id: string,
+    payload: Record<string, unknown>
+) {
+    const { data: rows, error: existingError } = await supabase
+        .from('inventory_cost_analysis')
+        .select('id, calculated_at')
+        .eq('organization_id', organization_id)
+        .eq('product_id', product_id)
+        .eq('warehouse_id', warehouse_id)
+        .order('calculated_at', { ascending: false });
+
+    if (existingError) throw existingError;
+
+    const latest = rows?.[0];
+    const duplicateIds = (rows || []).slice(1).map((row: any) => row.id).filter(Boolean);
+
+    if (latest?.id) {
+        const { error: updateError } = await supabase
+            .from('inventory_cost_analysis')
+            .update(payload)
+            .eq('id', latest.id);
+        if (updateError) throw updateError;
+    } else {
+        const { error: insertError } = await supabase
+            .from('inventory_cost_analysis')
+            .insert(payload);
+        if (insertError) throw insertError;
+    }
+
+    if (duplicateIds.length > 0) {
+        await supabase.from('inventory_cost_analysis').delete().in('id', duplicateIds);
+    }
+}
+
 export async function runExpense(input: ExpenseInput): Promise<ExpenseResult> {
     const {
         organization_id,
@@ -75,15 +126,7 @@ export async function runExpense(input: ExpenseInput): Promise<ExpenseResult> {
     const cost_price = productRow?.cost_price ? Number(productRow.cost_price) : 0;
     const selling_price = productRow?.selling_price ? Number(productRow.selling_price) : 0;
 
-    const { data: metricRow, error: metricError } = await supabase
-        .from('inventory_metrics')
-        .select('forecast_demand')
-        .eq('organization_id', organization_id)
-        .eq('product_id', product_id)
-        .eq('warehouse_id', warehouse_id)
-        .maybeSingle();
-
-    if (metricError) throw metricError;
+    const metricRow = await getLatestMetricRow(organization_id, product_id, warehouse_id);
 
     const forecast_demand = metricRow?.forecast_demand ? Number(metricRow.forecast_demand) : 0;
     const stockout_units = Math.max(forecast_demand - current_stock, 0);
@@ -106,28 +149,7 @@ export async function runExpense(input: ExpenseInput): Promise<ExpenseResult> {
         calculated_at: new Date().toISOString()
     };
 
-    const { data: existing, error: existingError } = await supabase
-        .from('inventory_cost_analysis')
-        .select('id')
-        .eq('organization_id', organization_id)
-        .eq('product_id', product_id)
-        .eq('warehouse_id', warehouse_id)
-        .maybeSingle();
-
-    if (existingError) throw existingError;
-
-    if (existing?.id) {
-        const { error: updateError } = await supabase
-            .from('inventory_cost_analysis')
-            .update(payload)
-            .eq('id', existing.id);
-        if (updateError) throw updateError;
-    } else {
-        const { error: insertError } = await supabase
-            .from('inventory_cost_analysis')
-            .insert(payload);
-        if (insertError) throw insertError;
-    }
+    await upsertLatestCostRow(organization_id, product_id, warehouse_id, payload);
 
     return {
         holding_cost,

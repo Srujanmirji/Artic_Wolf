@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Clock, TrendingUp, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { getDefaultOrgId, getLatestNews, fetchMarketIntelligence, type NewsItem } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 type NewsCard = {
     id: string | number;
@@ -20,7 +21,7 @@ type NewsCard = {
     url?: string | null;
 };
 
-function impactFromSentiment(score?: number | null, t?: any) {
+function impactFromSentiment(score?: number | null, t?: TFunction) {
     if (score === null || score === undefined) {
         return { label: t ? t("news.market_impact", "Market Impact") : "Market Impact", className: "text-theme-300 bg-theme-900/30 border-theme-500/20" };
     }
@@ -33,7 +34,7 @@ function impactFromSentiment(score?: number | null, t?: any) {
     return { label: t ? t("news.medium_impact", "Medium Impact") : "Medium Impact", className: "text-theme-300 bg-theme-900/30 border-theme-500/20" };
 }
 
-function mapNewsItem(item: NewsItem, t: any): NewsCard {
+function mapNewsItem(item: NewsItem, t: TFunction): NewsCard {
     const impact = impactFromSentiment(item.sentiment_score, t);
     return {
         id: item.id,
@@ -108,49 +109,70 @@ export default function NewsIntelligencePage() {
 
                 {/* News Feed - 2 Columns wide */}
                 <div className="lg:col-span-2 space-y-4">
-                    {cards.map((news) => (
-                        <LiquidGlassCard key={news.id} className="border border-theme-500/20 p-5 group cursor-pointer transition-all duration-300" borderRadius="0.75rem" blurIntensity="md">
-                            {/* Hover glow */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-theme-300/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-                            <div className="flex justify-between items-start mb-3 relative z-10">
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${news.impactColor}`}>
-                                        {news.impact}
-                                    </span>
-                                    <span className="text-xs text-theme-500 flex items-center gap-1">
-                                        <Clock size={12} /> {news.time}
-                                    </span>
-                                </div>
-                                <span className="text-xs font-medium text-theme-300 bg-theme-900/50 px-2 py-1 rounded">
-                                    {news.type}
-                                </span>
-                            </div>
-
-                            <h3 className="text-lg font-semibold text-theme-100 mb-2 group-hover:text-white transition-colors">
-                                {news.title}
-                            </h3>
-                            <p className="text-sm text-theme-300 leading-relaxed mb-4">
-                                {news.summary}
-                            </p>
-
-                            <div className="flex items-center justify-between text-sm relative z-10 border-t border-theme-500/10 pt-4 mt-2">
-                                <span className="text-theme-500 font-medium">{news.source}</span>
-                                <a
-                                    href={news.url || "#"}
-                                    target={news.url ? "_blank" : undefined}
-                                    rel={news.url ? "noreferrer" : undefined}
-                                    className="text-theme-300 flex items-center gap-1 group-hover:text-theme-100 transition-colors"
-                                >
-                                    Read Full Article <ExternalLink size={14} />
-                                </a>
-                            </div>
+                    {isLoading ? (
+                        <LiquidGlassCard className="border border-theme-500/20 p-8 text-center" borderRadius="0.75rem" blurIntensity="md">
+                            <p className="text-theme-300">Loading market intelligence...</p>
                         </LiquidGlassCard>
-                    ))}
+                    ) : cards.length === 0 ? (
+                        <LiquidGlassCard className="border border-theme-500/20 p-8 text-center" borderRadius="0.75rem" blurIntensity="md">
+                            <h3 className="text-lg font-semibold text-white mb-2">No updates yet</h3>
+                            <p className="text-sm text-theme-300 mb-5">No news articles are currently available for your organization.</p>
+                            <button
+                                onClick={() => fetchMutation.mutate()}
+                                disabled={isFetching || !orgId}
+                                className="bg-theme-800/60 border border-theme-500/30 text-white px-4 py-2 rounded-lg font-medium hover:bg-theme-700/80 transition-all inline-flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                            >
+                                {isFetching ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                                <span>{isFetching ? t("common.analyzing", "Analyzing...") : t("news.refresh", "Refresh Intelligence")}</span>
+                            </button>
+                        </LiquidGlassCard>
+                    ) : (
+                        <>
+                            {cards.map((news) => (
+                                <LiquidGlassCard key={news.id} className="border border-theme-500/20 p-5 group cursor-pointer transition-all duration-300" borderRadius="0.75rem" blurIntensity="md">
+                                    {/* Hover glow */}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-theme-300/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                    <button className="w-full py-3 border border-theme-500/20 rounded-xl text-theme-300 font-medium hover:bg-theme-800/40 transition-colors">
-                        Load More Updates
-                    </button>
+                                    <div className="flex justify-between items-start mb-3 relative z-10">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${news.impactColor}`}>
+                                                {news.impact}
+                                            </span>
+                                            <span className="text-xs text-theme-500 flex items-center gap-1">
+                                                <Clock size={12} /> {news.time}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs font-medium text-theme-300 bg-theme-900/50 px-2 py-1 rounded">
+                                            {news.type}
+                                        </span>
+                                    </div>
+
+                                    <h3 className="text-lg font-semibold text-theme-100 mb-2 group-hover:text-white transition-colors">
+                                        {news.title}
+                                    </h3>
+                                    <p className="text-sm text-theme-300 leading-relaxed mb-4">
+                                        {news.summary}
+                                    </p>
+
+                                    <div className="flex items-center justify-between text-sm relative z-10 border-t border-theme-500/10 pt-4 mt-2">
+                                        <span className="text-theme-500 font-medium">{news.source}</span>
+                                        <a
+                                            href={news.url || "#"}
+                                            target={news.url ? "_blank" : undefined}
+                                            rel={news.url ? "noreferrer" : undefined}
+                                            className="text-theme-300 flex items-center gap-1 group-hover:text-theme-100 transition-colors"
+                                        >
+                                            Read Full Article <ExternalLink size={14} />
+                                        </a>
+                                    </div>
+                                </LiquidGlassCard>
+                            ))}
+
+                            <button className="w-full py-3 border border-theme-500/20 rounded-xl text-theme-300 font-medium hover:bg-theme-800/40 transition-colors">
+                                Load More Updates
+                            </button>
+                        </>
+                    )}
                 </div>
 
                 {/* Sidebar intelligence stats */}

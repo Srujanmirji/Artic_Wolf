@@ -25,6 +25,67 @@ export type ForecastResult = {
     reorder_point: number;
 };
 
+async function getLatestBusinessProfile(organization_id: string) {
+    const { data, error } = await supabase
+        .from('business_profiles')
+        .select('supplier_lead_time, seasonal_demand, created_at')
+        .eq('organization_id', organization_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+}
+
+async function getLatestSupplierLeadTime(product_id: string) {
+    const { data, error } = await supabase
+        .from('suppliers')
+        .select('avg_lead_time_days, id')
+        .eq('product_id', product_id)
+        .order('id', { ascending: false })
+        .limit(1);
+
+    if (error) throw error;
+    return data?.[0]?.avg_lead_time_days || null;
+}
+
+async function upsertLatestInventoryMetric(
+    organization_id: string,
+    product_id: string,
+    warehouse_id: string,
+    payload: Record<string, unknown>
+) {
+    const { data: rows, error } = await supabase
+        .from('inventory_metrics')
+        .select('id, calculated_at')
+        .eq('organization_id', organization_id)
+        .eq('product_id', product_id)
+        .eq('warehouse_id', warehouse_id)
+        .order('calculated_at', { ascending: false });
+
+    if (error) throw error;
+
+    const latest = rows?.[0];
+    const duplicateIds = (rows || []).slice(1).map((row: any) => row.id).filter(Boolean);
+
+    if (latest?.id) {
+        const { error: updateError } = await supabase
+            .from('inventory_metrics')
+            .update(payload)
+            .eq('id', latest.id);
+        if (updateError) throw updateError;
+    } else {
+        const { error: insertError } = await supabase
+            .from('inventory_metrics')
+            .insert(payload);
+        if (insertError) throw insertError;
+    }
+
+    if (duplicateIds.length > 0) {
+        await supabase.from('inventory_metrics').delete().in('id', duplicateIds);
+    }
+}
+
 export async function runForecast(input: ForecastInput): Promise<ForecastResult> {
     const { organization_id, product_id, warehouse_id, period_days } = input;
     const method = input.method === 'exponential_smoothing' ? 'exponential_smoothing' : 'exponential_smoothing';
@@ -60,30 +121,18 @@ export async function runForecast(input: ForecastInput): Promise<ForecastResult>
         : 0;
 
     if (!lead_time_days) {
-        // Fallback chain: explicit param → business_profiles → suppliers table → default 7
-        const { data: bpData } = await supabase
-            .from('business_profiles')
-            .select('supplier_lead_time')
-            .eq('organization_id', organization_id)
-            .maybeSingle();
+        const bpData = await getLatestBusinessProfile(organization_id);
 
         if (bpData?.supplier_lead_time && bpData.supplier_lead_time > 0) {
             lead_time_days = bpData.supplier_lead_time;
         } else {
-            const { data: supplierData, error: supplierError } = await supabase
-                .from('suppliers')
-                .select('avg_lead_time_days')
-                .eq('product_id', product_id)
-                .maybeSingle();
-
-            if (supplierError) throw supplierError;
-            lead_time_days = supplierData?.avg_lead_time_days || 7;
+            const supplierLeadTime = await getLatestSupplierLeadTime(product_id);
+            lead_time_days = supplierLeadTime || 7;
         }
     }
 
     let computed_safety_stock = safetyStock(sigma_d, lead_time_days, serviceLevel);
 
-    // Apply seasonal demand multiplier: +25% safety buffer when demand is seasonal
     if (input.seasonal_demand) {
         computed_safety_stock = Math.ceil(computed_safety_stock * 1.25);
     }
@@ -103,28 +152,7 @@ export async function runForecast(input: ForecastInput): Promise<ForecastResult>
         calculated_at: new Date().toISOString()
     };
 
-    const { data: existingMetric, error: existingError } = await supabase
-        .from('inventory_metrics')
-        .select('id')
-        .eq('organization_id', organization_id)
-        .eq('product_id', product_id)
-        .eq('warehouse_id', warehouse_id)
-        .maybeSingle();
-
-    if (existingError) throw existingError;
-
-    if (existingMetric?.id) {
-        const { error: updateError } = await supabase
-            .from('inventory_metrics')
-            .update(metricsPayload)
-            .eq('id', existingMetric.id);
-        if (updateError) throw updateError;
-    } else {
-        const { error: insertError } = await supabase
-            .from('inventory_metrics')
-            .insert(metricsPayload);
-        if (insertError) throw insertError;
-    }
+    await upsertLatestInventoryMetric(organization_id, product_id, warehouse_id, metricsPayload);
 
     return {
         forecast_demand,
@@ -145,12 +173,7 @@ export async function runForecastForOrganization(organization_id: string, period
     service_level?: number;
     lead_time_days?: number;
 }) {
-    // Fetch business profile once for the entire org run
-    const { data: businessProfile } = await supabase
-        .from('business_profiles')
-        .select('seasonal_demand, supplier_lead_time')
-        .eq('organization_id', organization_id)
-        .maybeSingle();
+    const businessProfile = await getLatestBusinessProfile(organization_id);
 
     const orgLeadTime = options?.lead_time_days || businessProfile?.supplier_lead_time || undefined;
     const orgSeasonalDemand = businessProfile?.seasonal_demand ?? false;

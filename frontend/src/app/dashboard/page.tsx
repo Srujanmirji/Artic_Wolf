@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
     LineChart,
@@ -32,6 +33,7 @@ const SPARK_DATA = [
 
 export default function DashboardOverview() {
     const { t } = useTranslation();
+    const [activeTab, setActiveTab] = useState('All');
     const orgId = getDefaultOrgId();
     const { data: kpis, error: queryError } = useQuery({
         queryKey: ['kpis', orgId],
@@ -90,13 +92,17 @@ export default function DashboardOverview() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
                 <h2 className="text-3xl font-bold text-white tracking-tight">{t("dashboard.my_dashboard", "My Dashboard")}</h2>
                 <div className="flex bg-theme-800/40 p-1.5 rounded-full border border-theme-700/50 backdrop-blur-md overflow-x-auto no-scrollbar w-max max-w-full">
-                    {['All', 'Electronics', 'Apparel', 'Home Goods'].map((tab, i) => (
-                        <button key={tab} className={cn(
-                            "px-5 py-2 text-sm font-medium transition-all rounded-full whitespace-nowrap",
-                            i === 0
-                                ? "bg-theme-500/20 text-theme-100 shadow-[0_0_15px_rgba(74,92,106,0.15)]"
-                                : "text-theme-300 hover:text-white hover:bg-theme-700/30"
-                        )}>
+                    {['All', 'Electronics', 'Apparel', 'Home Goods'].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={cn(
+                                "px-5 py-2 text-sm font-medium transition-all rounded-full whitespace-nowrap",
+                                activeTab === tab
+                                    ? "bg-theme-500/20 text-theme-100 shadow-[0_0_15px_rgba(74,92,106,0.15)] ring-1 ring-theme-500/50"
+                                    : "text-theme-300 hover:text-white hover:bg-theme-700/30"
+                            )}
+                        >
                             {tab}
                         </button>
                     ))}
@@ -122,7 +128,9 @@ export default function DashboardOverview() {
                     <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex-1 min-h-[350px]" borderRadius="2rem" blurIntensity="md">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-semibold text-white">{t("dashboard.demand_flow", "Demand Flow")}</h3>
-                            <button className="text-sm text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
+                            <Link href="/dashboard/forecast" className="text-sm text-theme-300 hover:text-white transition-colors">
+                                {t("common.view_all", "View All >")}
+                            </Link>
                         </div>
                         <div className="h-[250px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
@@ -158,7 +166,9 @@ export default function DashboardOverview() {
                         <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex flex-col justify-center" borderRadius="2rem" blurIntensity="md">
                             <div className="flex justify-between items-center mb-2">
                                 <h3 className="text-lg font-semibold text-white">{t("dashboard.available_by_category", "Available By Category")}</h3>
-                                <button className="text-sm text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
+                                <Link href="/dashboard/inventory" className="text-sm text-theme-300 hover:text-white transition-colors">
+                                    {t("common.view_all", "View All >")}
+                                </Link>
                             </div>
                             <div className="flex-1 flex items-center justify-center relative min-h-[180px]">
                                 {/* Custom CSS Donut representation since Recharts PieChart takes complex setup */}
@@ -230,9 +240,9 @@ export default function DashboardOverview() {
 
                             <div className="relative z-10 flex justify-between items-start mb-6">
                                 <span className="text-theme-100 text-sm font-medium opacity-90">{t("dashboard.total_value", "Total Value")}</span>
-                                <button className="bg-white/20 hover:bg-white/30 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors shadow-sm">
+                                <Link href="/dashboard/inventory" className="bg-white/20 hover:bg-white/30 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors shadow-sm">
                                     <span className="text-lg leading-none">+</span>
-                                </button>
+                                </Link>
                             </div>
                             <div className="relative z-10 text-4xl font-black tracking-tight text-white drop-shadow-md">
                                 {formatCurrency(totalInventoryValue, { notation: "compact", maximumFractionDigits: 1 })}
@@ -247,7 +257,9 @@ export default function DashboardOverview() {
                         <div className="px-5 py-4 relative z-10">
                             <div className="flex justify-between items-center">
                                 <span className="text-white font-medium">{t("dashboard.my_inventory", "My Inventory")}</span>
-                                <button className="text-xs text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
+                                <Link href="/dashboard/inventory" className="text-xs text-theme-300 hover:text-white transition-colors">
+                                    {t("common.view_all", "View All >")}
+                                </Link>
                             </div>
                             <div className="mt-4 flex gap-2">
                                 {/* Skeleton visual indicators for the sub-cards effect seen in the image */}
@@ -261,7 +273,9 @@ export default function DashboardOverview() {
                     <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex-1" borderRadius="2rem" blurIntensity="md">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-semibold text-white">{t("dashboard.recent_orders", "Recent Orders")}</h3>
-                            <button className="text-sm text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
+                            <Link href="/dashboard/recommendations" className="text-sm text-theme-300 hover:text-white transition-colors">
+                                {t("common.view_all", "View All >")}
+                            </Link>
                         </div>
                         <div className="space-y-5">
                             {!recentActivity || recentActivity.length === 0 ? (
@@ -292,15 +306,21 @@ export default function DashboardOverview() {
 
                     {/* Bottom Mini Widgets */}
                     <div className="grid grid-cols-2 gap-4">
-                        <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex flex-col justify-between hover:border-theme-500/30 transition-colors cursor-pointer" borderRadius="2rem" blurIntensity="md">
-                            <p className="text-sm font-medium text-white mb-2 relative z-10">{t("dashboard.team_access", "Team Access")}</p>
-                            <p className="text-xs text-theme-300 mb-4 line-clamp-2 relative z-10">{t("dashboard.manage_permissions", "Manage permissions & invite members")}</p>
-                            <div className="flex -space-x-2 relative z-10">
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-300 to-theme-500 border-2 border-theme-800 z-30" />
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-500 to-theme-700 border-2 border-theme-800 z-20" />
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-100 to-theme-300 border-2 border-theme-800 z-10" />
-                            </div>
-                        </LiquidGlassCard>
+                        <Link href="/dashboard/settings" className="block">
+                            <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex flex-col justify-between hover:border-theme-500/30 transition-colors cursor-pointer h-full" borderRadius="2rem" blurIntensity="md">
+                                <div>
+                                    <p className="text-sm font-medium text-white mb-2 relative z-10">{t("dashboard.team_access", "Team Access")}</p>
+                                    <p className="text-xs text-theme-300 mb-4 line-clamp-2 relative z-10">{t("dashboard.manage_permissions", "Manage permissions & invite members")}</p>
+                                </div>
+                                <div className="flex h-7 -space-x-2 relative z-10 mt-auto">
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-300 to-theme-500 border-2 border-theme-800 z-10 relative shadow-sm" />
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-500 to-theme-700 border-2 border-theme-800 z-20 relative shadow-sm" />
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-100 to-theme-300 border-2 border-theme-800 z-30 relative shadow-sm flex items-center justify-center text-[10px] font-bold text-theme-800">
+                                        +3
+                                    </div>
+                                </div>
+                            </LiquidGlassCard>
+                        </Link>
 
                         <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex flex-col justify-between group" borderRadius="2rem" blurIntensity="md">
                             <p className="text-sm font-medium text-white mb-3">{t("dashboard.efficiency", "Efficiency")}</p>

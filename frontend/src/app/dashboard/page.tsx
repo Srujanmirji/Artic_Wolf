@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { getDashboardKpis, getDefaultOrgId, type DashboardKpis } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
+import { useTranslation } from "react-i18next";
 
 const FORECAST_DATA = [
     { name: 'Jan', forecast: 4000, actual: 4400 },
@@ -46,6 +47,7 @@ const SPARK_DATA = [
 ];
 
 export default function DashboardOverview() {
+    const { t } = useTranslation();
     const orgId = getDefaultOrgId();
     const { data: kpis, error: queryError } = useQuery({
         queryKey: ['kpis', orgId],
@@ -64,7 +66,7 @@ export default function DashboardOverview() {
 
             {/* Header / Tabs */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-                <h2 className="text-3xl font-bold text-white tracking-tight">My Dashboard</h2>
+                <h2 className="text-3xl font-bold text-white tracking-tight">{t("dashboard.my_dashboard", "My Dashboard")}</h2>
                 <div className="flex bg-theme-800/40 p-1.5 rounded-full border border-theme-700/50 backdrop-blur-md overflow-x-auto no-scrollbar w-max max-w-full">
                     {['All', 'Electronics', 'Apparel', 'Home Goods'].map((tab, i) => (
                         <button key={tab} className={cn(
@@ -79,7 +81,7 @@ export default function DashboardOverview() {
                 </div>
             </div>
             {!orgId && (
-                <p className="text-xs text-theme-500">Set NEXT_PUBLIC_ORG_ID to load live data.</p>
+                <p className="text-xs text-theme-500">{t("common.no_org_id", "Set NEXT_PUBLIC_ORG_ID to load live data.")}</p>
             )}
             {kpiError && (
                 <p className="text-xs text-theme-500">{kpiError}</p>
@@ -94,8 +96,8 @@ export default function DashboardOverview() {
                     {/* Main Chart */}
                     <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex-1 min-h-[350px]" borderRadius="2rem" blurIntensity="md">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-semibold text-white">Demand Flow</h3>
-                            <button className="text-sm text-theme-300 hover:text-white transition-colors">View All &gt;</button>
+                            <h3 className="text-lg font-semibold text-white">{t("dashboard.demand_flow", "Demand Flow")}</h3>
+                            <button className="text-sm text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
                         </div>
                         <div className="h-[250px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
@@ -130,8 +132,8 @@ export default function DashboardOverview() {
                         {/* Donut Chart Component */}
                         <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex flex-col justify-center" borderRadius="2rem" blurIntensity="md">
                             <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-lg font-semibold text-white">Available By Category</h3>
-                                <button className="text-sm text-theme-300 hover:text-white transition-colors">View All &gt;</button>
+                                <h3 className="text-lg font-semibold text-white">{t("dashboard.available_by_category", "Available By Category")}</h3>
+                                <button className="text-sm text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
                             </div>
                             <div className="flex-1 flex items-center justify-center relative min-h-[180px]">
                                 {/* Custom CSS Donut representation since Recharts PieChart takes complex setup */}
@@ -148,7 +150,7 @@ export default function DashboardOverview() {
                                     </svg>
                                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                         <span className="text-xl font-bold text-white">{formatCurrency(totalInventoryValue, { notation: "compact", maximumFractionDigits: 1 })}</span>
-                                        <span className="text-xs text-theme-300">Total Value</span>
+                                        <span className="text-xs text-theme-300">{t("dashboard.total_value", "Total Value")}</span>
                                     </div>
                                 </div>
                             </div>
@@ -159,12 +161,12 @@ export default function DashboardOverview() {
                             <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex-1 flex flex-col justify-center relative overflow-hidden group" borderRadius="2rem" blurIntensity="md">
                                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-theme-500/10 rounded-full blur-xl group-hover:bg-theme-500/20 transition-all" />
                                 <div className="flex justify-between items-start mb-2 relative z-10">
-                                    <h3 className="text-white font-medium">Holding Cost</h3>
+                                    <h3 className="text-white font-medium">{t("dashboard.holding_cost", "Holding Cost")}</h3>
                                     <button className="text-theme-300 hover:text-white">...</button>
                                 </div>
                                 <div className="text-3xl font-bold text-theme-100 mb-1 relative z-10">{formatCurrency(holdingCost, { notation: "compact", maximumFractionDigits: 1 })}</div>
                                 <div className="flex justify-between items-center relative z-10">
-                                    <p className="text-xs text-theme-300">This month's cost</p>
+                                    <p className="text-xs text-theme-300">{t("dashboard.this_months_cost", "This month's cost")}</p>
                                     <span className="bg-theme-500/20 text-theme-300 text-xs font-semibold px-2 py-0.5 rounded-full">-8.2%</span>
                                 </div>
                             </LiquidGlassCard>
@@ -172,12 +174,12 @@ export default function DashboardOverview() {
                             <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex-1 flex flex-col justify-center relative overflow-hidden group" borderRadius="2rem" blurIntensity="md">
                                 <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-theme-300/10 rounded-full blur-xl group-hover:bg-theme-300/20 transition-all" />
                                 <div className="flex justify-between items-start mb-2 relative z-10">
-                                    <h3 className="text-white font-medium">Cost Savings</h3>
+                                    <h3 className="text-white font-medium">{t("dashboard.cost_savings", "Cost Savings")}</h3>
                                     <button className="text-theme-300 hover:text-white">...</button>
                                 </div>
                                 <div className="text-3xl font-bold text-white mb-1 relative z-10">{formatCurrency(costSavings, { notation: "compact", maximumFractionDigits: 1 })}</div>
                                 <div className="flex justify-between items-center relative z-10">
-                                    <p className="text-xs text-theme-300">This month's saving</p>
+                                    <p className="text-xs text-theme-300">{t("dashboard.this_months_saving", "This month's saving")}</p>
                                     <span className="bg-theme-300/20 text-theme-100 text-xs font-semibold px-2 py-0.5 rounded-full">+24%</span>
                                 </div>
                             </LiquidGlassCard>
@@ -202,7 +204,7 @@ export default function DashboardOverview() {
                             <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-theme-300/30 rounded-full blur-xl" />
 
                             <div className="relative z-10 flex justify-between items-start mb-6">
-                                <span className="text-theme-100 text-sm font-medium opacity-90">Total Value</span>
+                                <span className="text-theme-100 text-sm font-medium opacity-90">{t("dashboard.total_value", "Total Value")}</span>
                                 <button className="bg-white/20 hover:bg-white/30 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors shadow-sm">
                                     <span className="text-lg leading-none">+</span>
                                 </button>
@@ -219,8 +221,8 @@ export default function DashboardOverview() {
                         {/* Bottom half of the visual card structure in the image */}
                         <div className="px-5 py-4 relative z-10">
                             <div className="flex justify-between items-center">
-                                <span className="text-white font-medium">My Inventory</span>
-                                <button className="text-xs text-theme-300 hover:text-white transition-colors">View All &gt;</button>
+                                <span className="text-white font-medium">{t("dashboard.my_inventory", "My Inventory")}</span>
+                                <button className="text-xs text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
                             </div>
                             <div className="mt-4 flex gap-2">
                                 {/* Skeleton visual indicators for the sub-cards effect seen in the image */}
@@ -233,8 +235,8 @@ export default function DashboardOverview() {
                     {/* Transactions List */}
                     <LiquidGlassCard className="border border-theme-700/40 p-6 shadow-lg flex-1" borderRadius="2rem" blurIntensity="md">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-semibold text-white">Recent Orders</h3>
-                            <button className="text-sm text-theme-300 hover:text-white transition-colors">View All &gt;</button>
+                            <h3 className="text-lg font-semibold text-white">{t("dashboard.recent_orders", "Recent Orders")}</h3>
+                            <button className="text-sm text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
                         </div>
                         <div className="space-y-5">
                             {RECENT_ORDERS.map((order) => (
@@ -260,8 +262,8 @@ export default function DashboardOverview() {
                     {/* Bottom Mini Widgets */}
                     <div className="grid grid-cols-2 gap-4">
                         <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex flex-col justify-between hover:border-theme-500/30 transition-colors cursor-pointer" borderRadius="2rem" blurIntensity="md">
-                            <p className="text-sm font-medium text-white mb-2 relative z-10">Team Access</p>
-                            <p className="text-xs text-theme-300 mb-4 line-clamp-2 relative z-10">Manage permissions &amp; invite members</p>
+                            <p className="text-sm font-medium text-white mb-2 relative z-10">{t("dashboard.team_access", "Team Access")}</p>
+                            <p className="text-xs text-theme-300 mb-4 line-clamp-2 relative z-10">{t("dashboard.manage_permissions", "Manage permissions & invite members")}</p>
                             <div className="flex -space-x-2 relative z-10">
                                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-300 to-theme-500 border-2 border-theme-800 z-30" />
                                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-theme-500 to-theme-700 border-2 border-theme-800 z-20" />
@@ -270,7 +272,7 @@ export default function DashboardOverview() {
                         </LiquidGlassCard>
 
                         <LiquidGlassCard className="border border-theme-700/40 p-5 shadow-lg flex flex-col justify-between group" borderRadius="2rem" blurIntensity="md">
-                            <p className="text-sm font-medium text-white mb-3">Efficiency</p>
+                            <p className="text-sm font-medium text-white mb-3">{t("dashboard.efficiency", "Efficiency")}</p>
                             <div className="h-12 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={SPARK_DATA}>

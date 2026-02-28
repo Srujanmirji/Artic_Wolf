@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ShoppingBag, Loader2, Search, ArrowRight, CheckCircle2, AlertTriangle } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
-import { getInventoryList, getSalesHistory, recordSale, getDefaultOrgId } from "@/lib/api";
+import { getInventoryList, getSalesHistory, recordSale, getDefaultOrgId, type SalesHistoryItem } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { useTranslation } from "react-i18next";
-import { cn } from "@/lib/utils";
 
 export default function OrdersPage() {
     const { t } = useTranslation();
@@ -21,6 +20,8 @@ export default function OrdersPage() {
 
     const [selectedProduct, setSelectedProduct] = useState("");
     const [quantity, setQuantity] = useState<number | "">("");
+    const [costPrice, setCostPrice] = useState<number | "">("");
+    const [sellingPrice, setSellingPrice] = useState<number | "">("");
     const [errorMsg, setErrorMsg] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
 
@@ -28,32 +29,43 @@ export default function OrdersPage() {
     const { data: inventory, isLoading: isLoadingInventory, error: invQueryError } = useQuery({
         queryKey: ['inventory', orgId],
         queryFn: () => getInventoryList(orgId),
-        enabled: !!orgId
+        enabled: !!orgId,
+        retry: false
     });
 
     // Fetch Sales History
     const { data: salesHistory, isLoading: isLoadingSales, error: salesQueryError } = useQuery({
         queryKey: ['salesHistory', orgId],
         queryFn: () => getSalesHistory(orgId),
-        enabled: !!orgId
+        enabled: !!orgId,
+        retry: false
     });
 
     // Mutation to record sale
     const recordSaleMutation = useMutation({
-        mutationFn: (payload: { organization_id: string, product_id: string, quantity_sold: number }) => recordSale(payload),
+        mutationFn: (payload: {
+            organization_id: string;
+            product_id: string;
+            quantity_sold: number;
+            cost_price: number;
+            selling_price: number;
+        }) => recordSale(payload),
         onSuccess: () => {
             setSuccessMsg(t("orders.sale_recorded", "Sale successfully recorded!"));
             setSelectedProduct("");
             setQuantity("");
+            setCostPrice("");
+            setSellingPrice("");
             // Refetch data
-            queryClient.invalidateQueries({ queryKey: ['inventory'] });
-            queryClient.invalidateQueries({ queryKey: ['salesHistory'] });
-            queryClient.invalidateQueries({ queryKey: ['kpis'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory', orgId] });
+            queryClient.invalidateQueries({ queryKey: ['salesHistory', orgId] });
+            queryClient.invalidateQueries({ queryKey: ['kpis', orgId] });
+            queryClient.invalidateQueries({ queryKey: ['recentActivity', orgId] });
 
             setTimeout(() => setSuccessMsg(""), 3000);
         },
-        onError: (err: any) => {
-            setErrorMsg(err.message || "Failed to record sale.");
+        onError: (err: unknown) => {
+            setErrorMsg(err instanceof Error ? err.message : "Failed to record sale.");
             setTimeout(() => setErrorMsg(""), 4000);
         }
     });
@@ -73,6 +85,18 @@ export default function OrdersPage() {
             return;
         }
 
+        const costNum = Number(costPrice);
+        if (costPrice === "" || isNaN(costNum) || costNum < 0) {
+            setErrorMsg("Please enter a valid cost price.");
+            return;
+        }
+
+        const sellingNum = Number(sellingPrice);
+        if (sellingPrice === "" || isNaN(sellingNum) || sellingNum < 0) {
+            setErrorMsg("Please enter a valid selling price.");
+            return;
+        }
+
         const product = inventory?.find(p => p.product_id === selectedProduct);
         if (product && product.stock < qtyNum) {
             setErrorMsg(`Insufficient stock. Only ${product.stock} available.`);
@@ -82,11 +106,45 @@ export default function OrdersPage() {
         recordSaleMutation.mutate({
             organization_id: orgId,
             product_id: selectedProduct,
-            quantity_sold: qtyNum
+            quantity_sold: qtyNum,
+            cost_price: costNum,
+            selling_price: sellingNum
         });
     };
 
     const selectedProductData = inventory?.find(p => p.product_id === selectedProduct);
+
+    React.useEffect(() => {
+        if (!selectedProduct) {
+            setCostPrice("");
+            setSellingPrice("");
+            return;
+        }
+
+        const product = inventory?.find((p) => p.product_id === selectedProduct);
+        if (!product) return;
+
+        if (typeof product.cost_price === "number" && !Number.isNaN(product.cost_price)) {
+            setCostPrice(product.cost_price);
+        } else {
+            setCostPrice("");
+        }
+
+        if (typeof product.selling_price === "number" && !Number.isNaN(product.selling_price) && product.selling_price > 0) {
+            setSellingPrice(product.selling_price);
+        } else if (typeof product.price === "number" && !Number.isNaN(product.price) && product.price > 0) {
+            setSellingPrice(product.price);
+        } else {
+            setSellingPrice("");
+        }
+    }, [selectedProduct, inventory]);
+
+    const qtyNum = Number(quantity || 0);
+    const costNum = Number(costPrice || 0);
+    const sellingNum = Number(sellingPrice || 0);
+    const unitProfit = sellingNum - costNum;
+    const totalProfit = unitProfit * qtyNum;
+    const targetRevenue = sellingNum * qtyNum;
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 pb-10 max-w-7xl mx-auto">
@@ -179,22 +237,61 @@ export default function OrdersPage() {
                                 />
                             </div>
 
-                            {selectedProductData && quantity && Number(quantity) > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-theme-100 mb-1.5">{t("orders.cost_price", "Cost Price")}</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={costPrice}
+                                        onChange={(e) => setCostPrice(e.target.value ? Number(e.target.value) : "")}
+                                        placeholder="Enter cost price"
+                                        required
+                                        className="w-full bg-theme-800/50 border border-theme-700/50 text-white text-sm rounded-xl focus:ring-2 focus:ring-theme-500 focus:border-transparent block p-3"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-theme-100 mb-1.5">{t("orders.selling_price", "Selling Price")}</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={sellingPrice}
+                                        onChange={(e) => setSellingPrice(e.target.value ? Number(e.target.value) : "")}
+                                        placeholder="Enter selling price"
+                                        required
+                                        className="w-full bg-theme-800/50 border border-theme-700/50 text-white text-sm rounded-xl focus:ring-2 focus:ring-theme-500 focus:border-transparent block p-3"
+                                    />
+                                </div>
+                            </div>
+
+                            {selectedProductData && qtyNum > 0 && (
                                 <div className="p-4 bg-black/30 rounded-xl border border-theme-700/30">
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="text-theme-300">Target revenue:</span>
-                                        <span className="text-white font-medium">{formatCurrency(selectedProductData.price * Number(quantity))}</span>
+                                        <span className="text-white font-medium">{formatCurrency(targetRevenue)}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
                                         <span className="text-theme-500">Stock after sale:</span>
-                                        <span className="text-theme-100">{selectedProductData.stock - Number(quantity)} units</span>
+                                        <span className="text-theme-100">{selectedProductData.stock - qtyNum} units</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs mt-1">
+                                        <span className="text-theme-500">Unit profit (Selling - Cost):</span>
+                                        <span className={unitProfit >= 0 ? "text-emerald-300" : "text-red-300"}>
+                                            {formatCurrency(unitProfit, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-xs mt-1">
+                                        <span className="text-theme-500">Total profit:</span>
+                                        <span className={totalProfit >= 0 ? "text-emerald-300" : "text-red-300"}>{formatCurrency(totalProfit)}</span>
                                     </div>
                                 </div>
                             )}
 
                             <button
                                 type="submit"
-                                disabled={recordSaleMutation.isPending || !selectedProduct || !quantity}
+                                disabled={recordSaleMutation.isPending || !selectedProduct || !quantity || costPrice === "" || sellingPrice === ""}
                                 className="w-full bg-theme-100 text-theme-900 hover:bg-white font-semibold py-3 px-4 rounded-xl shadow-[0_0_20px_rgba(204,208,207,0.3)] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:shadow-none"
                             >
                                 {recordSaleMutation.isPending ? (
@@ -252,7 +349,7 @@ export default function OrdersPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {salesHistory.map((sale: any, idx: number) => {
+                                        {salesHistory.map((sale: SalesHistoryItem, idx: number) => {
                                             const val = (sale.products?.selling_price || 0) * sale.quantity_sold;
                                             return (
                                                 <tr key={sale.id || idx} className="border-b border-theme-800/30 hover:bg-theme-800/20 transition-colors last:border-0">

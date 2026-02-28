@@ -22,7 +22,9 @@ const recordSaleSchema = z.object({
     body: z.object({
         organization_id: z.string().uuid(),
         product_id: z.string().uuid(),
-        quantity_sold: z.number().int().positive()
+        quantity_sold: z.number().int().positive(),
+        cost_price: z.number().nonnegative().optional(),
+        selling_price: z.number().nonnegative().optional()
     })
 });
 

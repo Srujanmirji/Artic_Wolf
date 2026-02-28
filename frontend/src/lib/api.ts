@@ -1,6 +1,7 @@
 import { syncManager } from './offlineSync';
 
 const DEFAULT_BASE_URL = "http://localhost:5000";
+const API_TIMEOUT_MS = 12000;
 
 export type DashboardKpis = {
   total_products_tracked: number;
@@ -20,6 +21,8 @@ export type InventoryItem = {
   stock: number;
   status: "In Stock" | "Low Stock" | "Out of Stock";
   price: number;
+  cost_price?: number;
+  selling_price?: number;
 };
 
 export type NewsItem = {
@@ -32,6 +35,23 @@ export type NewsItem = {
   region?: string | null;
   industry?: string | null;
   sentiment_score?: number | null;
+};
+
+export type SentimentAnalyzeResponse = {
+  count: number;
+  items: NewsItem[];
+};
+
+export type NewsImpactItem = {
+  news_id: string;
+  impact_multiplier: number;
+  sentiment_score: number;
+  days_old: number;
+};
+
+export type NewsImpactResponse = {
+  count: number;
+  results: NewsImpactItem[];
 };
 
 export type RecommendationItem = {
@@ -57,7 +77,7 @@ export type RecommendationItem = {
 export function getApiBaseUrl() {
   const env = process.env.NEXT_PUBLIC_API_BASE_URL;
   const base = env && env.trim().length > 0 ? env.trim() : DEFAULT_BASE_URL;
-  return base.replace(/\/$/, "");
+  return base.replace(/\/$/, "").replace(/\/api$/, "");
 }
 
 export function getDefaultOrgId() {
@@ -94,10 +114,24 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     throw new Error('No internet connection. Please check your network and try again.');
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new Error(`Request timed out after ${Math.floor(API_TIMEOUT_MS / 1000)}s. Please check your backend connection.`);
+    }
+    throw new Error("Network error. Unable to reach the backend service.");
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let message = response.statusText;
@@ -133,7 +167,13 @@ export function getSalesHistory(orgId: string) {
   return apiFetch<SalesHistoryItem[]>(`/api/sales/history?org=${encodeURIComponent(orgId)}`);
 }
 
-export function recordSale(payload: { organization_id: string, product_id: string, quantity_sold: number }) {
+export function recordSale(payload: {
+  organization_id: string;
+  product_id: string;
+  quantity_sold: number;
+  cost_price?: number;
+  selling_price?: number;
+}) {
   return apiFetch<{ success: boolean; message: string; new_stock: number }>('/api/sales/record', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -191,6 +231,20 @@ export function fetchMarketIntelligence(orgId: string, region?: string, industry
   });
 }
 
+export function analyzeNewsSentiment(orgId: string) {
+  return apiFetch<SentimentAnalyzeResponse>('/api/sentiment/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ organization_id: orgId }),
+  });
+}
+
+export function computeNewsImpact(orgId: string) {
+  return apiFetch<NewsImpactResponse>('/api/news-impact/compute', {
+    method: 'POST',
+    body: JSON.stringify({ organization_id: orgId }),
+  });
+}
+
 export function getRecommendations(orgId: string) {
   return apiFetch<RecommendationItem[]>(`/api/recommendations?org=${encodeURIComponent(orgId)}`);
 }
@@ -240,7 +294,7 @@ export type ScenarioResult = {
 };
 
 export function applyScenario(orgId: string, scenarioId: string) {
-  return apiFetch<{ count: number; results: ScenarioResult[] }>('/api/scenarios/apply', {
+  return apiFetch<{ count: number; results: ScenarioResult[] }>('/api/scenario/apply', {
     method: 'POST',
     body: JSON.stringify({
       organization_id: orgId,
@@ -257,7 +311,7 @@ export type TransferRecommendation = {
 };
 
 export function optimizeTransfers(orgId: string) {
-  return apiFetch<{ count: number; results: TransferRecommendation[] }>('/api/transfers/optimize', {
+  return apiFetch<{ count: number; results: TransferRecommendation[] }>('/api/transfer/optimize', {
     method: 'POST',
     body: JSON.stringify({
       organization_id: orgId,
@@ -295,4 +349,3 @@ export function submitOnboarding(payload: OnboardingPayload) {
     body: JSON.stringify(payload),
   });
 }
-

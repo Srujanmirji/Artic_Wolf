@@ -16,21 +16,62 @@ function toNumber(value: unknown): number {
     return Number.isNaN(num) ? 0 : num;
 }
 
-export async function applyScenario(organization_id: string, scenario_id: string): Promise<ScenarioResult[]> {
-    const { data: scenario, error: scenarioError } = await supabase
-        .from('market_scenarios')
-        .select('id, demand_multiplier, lead_time_multiplier')
-        .eq('organization_id', organization_id)
-        .eq('id', scenario_id)
-        .maybeSingle();
+function isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
 
-    if (scenarioError) throw scenarioError;
-    if (!scenario) {
-        throw new Error('Scenario not found for organization');
+type ScenarioMultipliers = {
+    demand_multiplier: number;
+    lead_time_multiplier: number;
+};
+
+function resolvePresetScenario(scenario_id: string): ScenarioMultipliers | null {
+    const key = String(scenario_id || '').trim().toLowerCase();
+
+    // Frontend currently sends fixed IDs 1/2/3.
+    if (key === '1' || key === 'high-demand' || key === 'high_demand') {
+        return { demand_multiplier: 1.2, lead_time_multiplier: 1.0 };
+    }
+    if (key === '2' || key === 'supplier-delay' || key === 'supplier_delay') {
+        return { demand_multiplier: 1.0, lead_time_multiplier: 1.35 };
+    }
+    if (key === '3' || key === 'holiday-peak' || key === 'holiday_peak') {
+        return { demand_multiplier: 1.3, lead_time_multiplier: 1.2 };
     }
 
-    const demand_multiplier = toNumber(scenario.demand_multiplier) || 1;
-    const lead_time_multiplier = toNumber(scenario.lead_time_multiplier) || 1;
+    return null;
+}
+
+export async function applyScenario(organization_id: string, scenario_id: string): Promise<ScenarioResult[]> {
+    let demand_multiplier = 1;
+    let lead_time_multiplier = 1;
+
+    let scenario: { id: string; demand_multiplier: number; lead_time_multiplier: number } | null = null;
+    let scenarioError: any = null;
+
+    if (isUuid(String(scenario_id || ''))) {
+        const queryResult = await supabase
+            .from('market_scenarios')
+            .select('id, demand_multiplier, lead_time_multiplier')
+            .eq('organization_id', organization_id)
+            .eq('id', scenario_id)
+            .maybeSingle();
+        scenario = queryResult.data;
+        scenarioError = queryResult.error;
+    }
+
+    if (scenarioError) throw scenarioError;
+    if (scenario) {
+        demand_multiplier = toNumber(scenario.demand_multiplier) || 1;
+        lead_time_multiplier = toNumber(scenario.lead_time_multiplier) || 1;
+    } else {
+        const preset = resolvePresetScenario(scenario_id);
+        if (!preset) {
+            throw new Error('Scenario not found for organization');
+        }
+        demand_multiplier = preset.demand_multiplier;
+        lead_time_multiplier = preset.lead_time_multiplier;
+    }
 
     const { data: metrics, error: metricsError } = await supabase
         .from('inventory_metrics')

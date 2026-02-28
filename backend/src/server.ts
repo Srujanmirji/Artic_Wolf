@@ -48,12 +48,14 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/inventory', inventoryRoutes); // Using for /api/inventory/metrics
 app.use('/api/forecast', forecastRoutes);
 app.use('/api/scenario', scenarioRoutes);
+app.use('/api/scenarios', scenarioRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/sentiment', sentimentRoutes);
 app.use('/api/news-impact', newsImpactRoutes);
 app.use('/api/transfer', transferRoutes);
+app.use('/api/transfers', transferRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 

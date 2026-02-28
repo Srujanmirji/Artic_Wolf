@@ -92,7 +92,8 @@ export async function getDashboardKpis(organization_id: string): Promise<Dashboa
 
         for (const row of inventoryRows || []) {
             const price = priceMap.get(row.product_id as string) || 0;
-            total_inventory_value += toNumber(row.current_stock) * price;
+            const stock = toNumber(row.current_stock);
+            total_inventory_value += stock * price;
         }
     }
 

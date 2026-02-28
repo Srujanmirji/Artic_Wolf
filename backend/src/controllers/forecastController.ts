@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { runForecast, runForecastForOrganization } from '../services/forecastService';
+import { runExpenseForOrganization } from '../services/expenseService';
+import { runRecommendationsForOrganization } from '../services/recommendationService';
 
 function parseNumber(value: unknown): number | undefined {
     if (typeof value === 'number' && !Number.isNaN(value)) return value;
@@ -58,6 +60,15 @@ export async function runForecastAllHandler(req: Request, res: Response) {
             service_level,
             lead_time_days
         });
+
+        // Also trigger Expense and Recommendation updates to populate Dashboard KPIs
+        try {
+            await runExpenseForOrganization(organization_id, period_days);
+            await runRecommendationsForOrganization(organization_id);
+        } catch (analyticsErr) {
+            console.warn('Dashboard side-analytics failed:', analyticsErr);
+            // Non-blocking for the forecast response
+        }
 
         res.json({ count: results.length, results });
     } catch (err: any) {

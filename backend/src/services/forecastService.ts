@@ -15,6 +15,8 @@ export type ForecastInput = {
 
 export type ForecastResult = {
     forecast_demand: number;
+    forecast_quantity: number;
+    forecast_date: string;
     period_days: number;
     method: 'exponential_smoothing';
     sigma_d: number;
@@ -126,6 +128,8 @@ export async function runForecast(input: ForecastInput): Promise<ForecastResult>
 
     return {
         forecast_demand,
+        forecast_quantity: forecast_demand,
+        forecast_date: new Date().toISOString(),
         period_days,
         method,
         sigma_d,

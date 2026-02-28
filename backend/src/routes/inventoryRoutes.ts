@@ -23,6 +23,18 @@ function toNumber(value: unknown): number {
     return Number.isNaN(num) ? 0 : num;
 }
 
+function formatDataAccessError(err: any): string {
+    const message = String(err?.message || 'Unknown server error');
+    const details = String(err?.details || '');
+    const combined = `${message} ${details}`.toLowerCase();
+
+    if (combined.includes('fetch failed') || combined.includes('connect timeout')) {
+        return 'Database connection failed: Supabase is unreachable from this server. Check DNS/network and retry.';
+    }
+
+    return message;
+}
+
 // /api/inventory/list
 router.get('/list', async (req, res) => {
     try {
@@ -90,7 +102,9 @@ router.get('/list', async (req, res) => {
                 status = 'Low Stock';
             }
 
-            const price = product ? toNumber(product.selling_price) || toNumber(product.cost_price) : 0;
+            const price = product ? toNumber(product.cost_price) || toNumber(product.selling_price) : 0;
+            const costPrice = product ? toNumber(product.cost_price) : 0;
+            const sellingPrice = product ? toNumber(product.selling_price) : 0;
 
             items.push({
                 id: product?.sku || productId,
@@ -99,7 +113,9 @@ router.get('/list', async (req, res) => {
                 category: product?.category || 'Uncategorized',
                 stock,
                 status,
-                price
+                price,
+                cost_price: costPrice,
+                selling_price: sellingPrice
             });
         }
 
@@ -108,7 +124,7 @@ router.get('/list', async (req, res) => {
         res.json(items);
     } catch (err: any) {
         console.error('Inventory List Error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: formatDataAccessError(err) });
     }
 });
 
@@ -132,7 +148,7 @@ router.post('/items', validateRequest(itemSchema), async (req, res) => {
         // Create product
         const { data: product, error: pErr } = await supabase
             .from('products')
-            .insert({ organization_id, name, category, selling_price: price, sku: `SKU-${Date.now()}` })
+            .insert({ organization_id, name, category, cost_price: price, sku: `SKU-${Date.now()}` })
             .select()
             .single();
 
@@ -171,7 +187,7 @@ router.put('/items/:id', validateRequest(updateItemSchema), async (req, res) => 
         // Update product
         const { error: pErr } = await supabase
             .from('products')
-            .update({ name, category, selling_price: price })
+            .update({ name, category, cost_price: price })
             .eq('id', productId);
 
         if (pErr) throw pErr;

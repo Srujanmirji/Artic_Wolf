@@ -40,7 +40,7 @@ Create `frontend/.env.local` with your Supabase credentials and backend URL:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
 NEXT_PUBLIC_PWA=true
 ```
 Start the frontend:

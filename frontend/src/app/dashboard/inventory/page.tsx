@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Filter, MoreHorizontal, ArrowDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Search, Filter, ArrowDown, AlertTriangle, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { getDefaultOrgId, getInventoryList, addInventoryItem, updateInventoryItem, deleteInventoryItem, type InventoryItem } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
@@ -126,7 +126,7 @@ export default function InventoryPage() {
                                 <th className="px-6 py-4 font-medium">{t("inventory.category", "Category")}</th>
                                 <th className="px-6 py-4 font-medium">{t("inventory.stock_level", "Stock Level")}</th>
                                 <th className="px-6 py-4 font-medium">{t("inventory.status", "Status")}</th>
-                                <th className="px-6 py-4 font-medium">{t("inventory.unit_price", "Unit Price")}</th>
+                                <th className="px-6 py-4 font-medium">{t("inventory.unit_price", "Unit Price (Cost)")}</th>
                                 <th className="px-6 py-4 font-medium text-right">{t("inventory.actions", "Actions")}</th>
                             </tr>
                         </thead>
@@ -151,24 +151,28 @@ export default function InventoryPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-theme-300">{formatCurrency(item.price, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</td>
-                                    <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                                        <button
-                                            onClick={() => {
-                                                setEditingItem(item);
-                                                setFormData({ name: item.name, category: item.category, price: item.price, stock: item.stock });
-                                                setIsModalOpen(true);
-                                            }}
-                                            className="p-2 text-theme-500 hover:text-theme-100 rounded-lg hover:bg-theme-700/50 transition-colors opacity-0 group-hover:opacity-100"
-                                        >
-                                            <MoreHorizontal size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(item.product_id)}
-                                            disabled={deleteMutation.isPending}
-                                            className="p-2 text-red-500/70 hover:text-red-400 rounded-lg hover:bg-theme-700/50 transition-colors opacity-0 group-hover:opacity-100"
-                                        >
-                                            <AlertTriangle size={18} />
-                                        </button>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="inline-flex items-center justify-end gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setEditingItem(item);
+                                                    setFormData({ name: item.name, category: item.category, price: item.price, stock: item.stock });
+                                                    setIsModalOpen(true);
+                                                }}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-theme-500/30 text-theme-200 hover:text-white hover:bg-theme-700/40 transition-colors"
+                                            >
+                                                <Pencil size={14} />
+                                                {t("common.edit", "Edit")}
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(item.product_id)}
+                                                disabled={deleteMutation.isPending}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 hover:text-red-200 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                            >
+                                                <Trash2 size={14} />
+                                                {t("common.delete", "Delete")}
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -208,7 +212,7 @@ export default function InventoryPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-theme-300 mb-1">{t("inventory.unit_price_label", "Unit Price ($)")}</label>
+                                    <label className="block text-sm font-medium text-theme-300 mb-1">{t("inventory.unit_price_label", "Cost Price")}</label>
                                     <input
                                         type="number" step="0.01" min="0"
                                         className="w-full bg-theme-800/40 border border-theme-500/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-theme-300"

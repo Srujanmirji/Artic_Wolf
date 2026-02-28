@@ -19,39 +19,6 @@ type NewsCard = {
     url?: string | null;
 };
 
-const FALLBACK_NEWS: NewsCard[] = [
-    {
-        id: 1,
-        source: "Global Supply Chain Review",
-        title: "Suez Canal Delays Expected to Continue Through Q4",
-        summary: "Shipping vessels are facing renewed delays at major chokepoints, potentially impacting inventory deliveries for the upcoming holiday season. Analysts suggest increasing buffer stock.",
-        time: "2 hours ago",
-        impact: "High Impact",
-        impactColor: "text-white bg-theme-500/20 border-theme-500/30",
-        type: "Logistics"
-    },
-    {
-        id: 2,
-        source: "Tech Hardware Daily",
-        title: "Silicon Wafer Shortage Easing",
-        summary: "Major semiconductor manufacturers report stabilizing inventory levels. Lead times for consumer electronics components are expected to drop by 15% next month.",
-        time: "5 hours ago",
-        impact: "Positive Impact",
-        impactColor: "text-theme-100 bg-theme-700/20 border-theme-700/30",
-        type: "Market Trend"
-    },
-    {
-        id: 3,
-        source: "Trade Economics",
-        title: "New Tariffs on Imported Textiles Announced",
-        summary: "Government agencies have announced an additional 5% tariff on specific textile categories starting next month. Cost holding analysis is recommended.",
-        time: "12 hours ago",
-        impact: "Medium Impact",
-        impactColor: "text-theme-300 bg-theme-900/30 border-theme-500/20",
-        type: "Policy"
-    }
-];
-
 function impactFromSentiment(score?: number | null) {
     if (score === null || score === undefined) {
         return { label: "Market Impact", className: "text-theme-300 bg-theme-900/30 border-theme-500/20" };
@@ -101,7 +68,7 @@ export default function NewsIntelligencePage() {
     const isFetching = fetchMutation.isPending;
 
     const cards = useMemo(() => {
-        if (!newsItemsData || !newsItemsData.length) return FALLBACK_NEWS;
+        if (!newsItemsData || !newsItemsData.length) return [];
         return newsItemsData.map(mapNewsItem);
     }, [newsItemsData]);
 

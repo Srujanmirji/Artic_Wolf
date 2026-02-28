@@ -116,6 +116,26 @@ export function getInventoryList(orgId: string) {
   return apiFetch<InventoryItem[]>(`/api/inventory/list?org=${encodeURIComponent(orgId)}`);
 }
 
+export function addInventoryItem(orgId: string, payload: { name: string, category: string, price: number, stock: number }) {
+  return apiFetch<any>('/api/inventory/items', {
+    method: 'POST',
+    body: JSON.stringify({ organization_id: orgId, ...payload }),
+  });
+}
+
+export function updateInventoryItem(orgId: string, productId: string, payload: { name: string, category: string, price: number, stock: number }) {
+  return apiFetch<any>(`/api/inventory/items/${encodeURIComponent(productId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ organization_id: orgId, ...payload }),
+  });
+}
+
+export function deleteInventoryItem(orgId: string, productId: string) {
+  return apiFetch<any>(`/api/inventory/items/${encodeURIComponent(productId)}?organization_id=${encodeURIComponent(orgId)}`, {
+    method: 'DELETE'
+  });
+}
+
 export function getLatestNews(orgId: string, region?: string, industry?: string) {
   const params = new URLSearchParams({ org: orgId });
   if (region) params.set("region", region);

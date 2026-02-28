@@ -40,7 +40,6 @@ const FALLBACK_CARDS: RecommendationCard[] = [
         variant: "secondary"
     }
 ];
-
 function shortId(id?: string | null) {
     if (!id) return "Unknown";
     return id.slice(0, 8);
@@ -116,7 +115,7 @@ export default function RecommendationsPage() {
     const isGenerating = generateMutation.isPending;
 
     const cards = useMemo(() => {
-        if (!recommendationsData || !recommendationsData.length) return FALLBACK_CARDS;
+        if (!recommendationsData || !recommendationsData.length) return [];
         return recommendationsData.map(buildRecommendationCard);
     }, [recommendationsData]);
 

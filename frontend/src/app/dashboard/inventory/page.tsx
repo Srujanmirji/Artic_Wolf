@@ -1,33 +1,66 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Filter, MoreHorizontal, ArrowDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
-import { getDefaultOrgId, getInventoryList, type InventoryItem } from "@/lib/api";
+import { getDefaultOrgId, getInventoryList, addInventoryItem, updateInventoryItem, deleteInventoryItem, type InventoryItem } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
-
-const INVENTORY_DATA: InventoryItem[] = [
-    { id: "INV-001", product_id: "INV-001", name: "Premium Wireless Headphones", category: "Electronics", stock: 124, status: "In Stock", price: 299 },
-    { id: "INV-002", product_id: "INV-002", name: "Ergonomic Office Chair", category: "Furniture", stock: 12, status: "Low Stock", price: 199.5 },
-    { id: "INV-003", product_id: "INV-003", name: "Mechanical Keyboard", category: "Electronics", stock: 0, status: "Out of Stock", price: 149.99 },
-    { id: "INV-004", product_id: "INV-004", name: "Stainless Steel Water Bottle", category: "Accessories", stock: 450, status: "In Stock", price: 35 },
-    { id: "INV-005", product_id: "INV-005", name: "Standing Desk Converter", category: "Furniture", stock: 8, status: "Low Stock", price: 250 },
-    { id: "INV-006", product_id: "INV-006", name: "Noise Cancelling Earbuds", category: "Electronics", stock: 85, status: "In Stock", price: 159 },
-];
 
 export default function InventoryPage() {
     const [searchTerm, setSearchTerm] = useState("");
-    const orgId = getDefaultOrgId();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+    const [formData, setFormData] = useState({ name: "", category: "", price: 0, stock: 0 });
 
-    const { data: itemsData, error: queryError } = useQuery({
+    const orgId = getDefaultOrgId();
+    const queryClient = useQueryClient();
+
+    const { data: itemsData, error: queryError, isLoading } = useQuery({
         queryKey: ['inventory', orgId],
         queryFn: () => getInventoryList(orgId),
         enabled: !!orgId
     });
 
-    const loadError = queryError ? (queryError as Error).message : null;
-    const items = itemsData || INVENTORY_DATA;
+    const invalidateTokens = () => {
+        queryClient.invalidateQueries({ queryKey: ['inventory', orgId] });
+        queryClient.invalidateQueries({ queryKey: ['kpis', orgId] });
+    };
+
+    const addMutation = useMutation({
+        mutationFn: (payload: typeof formData) => addInventoryItem(orgId, payload),
+        onSuccess: () => { invalidateTokens(); setIsModalOpen(false); }
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: (payload: typeof formData) => updateInventoryItem(orgId, editingItem!.product_id, payload),
+        onSuccess: () => { invalidateTokens(); setIsModalOpen(false); }
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (productId: string) => deleteInventoryItem(orgId, productId),
+        onSuccess: () => { invalidateTokens(); }
+    });
+
+    const handleSave = () => {
+        if (!orgId) return;
+        if (editingItem) updateMutation.mutate(formData);
+        else addMutation.mutate(formData);
+    };
+
+    const handleDelete = (productId: string) => {
+        if (!orgId || !confirm("Are you sure you want to delete this specific product permanently?")) return;
+        deleteMutation.mutate(productId);
+    };
+
+    const loadError = queryError ? (queryError as Error).message :
+        addMutation.error ? (addMutation.error as Error).message :
+            updateMutation.error ? (updateMutation.error as Error).message :
+                deleteMutation.error ? (deleteMutation.error as Error).message : null;
+
+    const isWorking = addMutation.isPending || updateMutation.isPending;
+
+    const items = itemsData || [];
 
     const filteredItems = useMemo(() => {
         if (!searchTerm) return items;
@@ -59,7 +92,15 @@ export default function InventoryPage() {
                     <button className="flex items-center gap-2 px-4 py-2 bg-theme-800/40 border border-theme-500/30 rounded-lg text-sm font-medium text-theme-100 hover:bg-theme-700/50 transition-colors w-full sm:w-auto justify-center">
                         <Filter size={16} /> Filters
                     </button>
-                    <button className="px-4 py-2 bg-theme-300 text-theme-900 rounded-lg text-sm font-semibold hover:bg-theme-100 transition-colors shadow-[0_0_15px_rgba(155,168,171,0.3)] w-full sm:w-auto justify-center">
+                    <button
+                        onClick={() => {
+                            setEditingItem(null);
+                            setFormData({ name: "", category: "General", price: 0, stock: 0 });
+                            setIsModalOpen(true);
+                        }}
+                        disabled={!orgId || isLoading}
+                        className="px-4 py-2 bg-theme-300 text-theme-900 rounded-lg text-sm font-semibold hover:bg-theme-100 transition-colors shadow-[0_0_15px_rgba(155,168,171,0.3)] w-full sm:w-auto justify-center disabled:opacity-50"
+                    >
                         Add Item
                     </button>
                 </div>
@@ -68,7 +109,7 @@ export default function InventoryPage() {
                 <p className="text-xs text-theme-500">Set NEXT_PUBLIC_ORG_ID to load live inventory.</p>
             )}
             {loadError && (
-                <p className="text-xs text-theme-500">{loadError}</p>
+                <p className="text-xs text-red-500">{loadError}</p>
             )}
 
             {/* Inventory Table */}
@@ -108,9 +149,23 @@ export default function InventoryPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-theme-300">{formatCurrency(item.price, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button className="p-2 text-theme-500 hover:text-theme-100 rounded-lg hover:bg-theme-700/50 transition-colors opacity-0 group-hover:opacity-100">
+                                    <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setEditingItem(item);
+                                                setFormData({ name: item.name, category: item.category, price: item.price, stock: item.stock });
+                                                setIsModalOpen(true);
+                                            }}
+                                            className="p-2 text-theme-500 hover:text-theme-100 rounded-lg hover:bg-theme-700/50 transition-colors opacity-0 group-hover:opacity-100"
+                                        >
                                             <MoreHorizontal size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(item.product_id)}
+                                            disabled={deleteMutation.isPending}
+                                            className="p-2 text-red-500/70 hover:text-red-400 rounded-lg hover:bg-theme-700/50 transition-colors opacity-0 group-hover:opacity-100"
+                                        >
+                                            <AlertTriangle size={18} />
                                         </button>
                                     </td>
                                 </tr>
@@ -120,13 +175,73 @@ export default function InventoryPage() {
                 </div>
                 {/* Pagination (Static for demo) */}
                 <div className="p-4 border-t border-theme-500/20 flex items-center justify-between text-sm text-theme-500 bg-theme-900/10">
-                    <div>Showing <span className="text-theme-300">1</span> to <span className="text-theme-300">6</span> of <span className="text-theme-300">42</span> results</div>
-                    <div className="flex gap-2">
-                        <button className="px-3 py-1 rounded border border-theme-500/20 hover:bg-theme-700/30 hover:text-theme-100 disabled:opacity-50 transition-colors">Previous</button>
-                        <button className="px-3 py-1 rounded border border-theme-500/20 hover:bg-theme-700/30 hover:text-theme-100 transition-colors">Next</button>
-                    </div>
+                    <div>Showing <span className="text-theme-300">{filteredItems.length}</span> out of <span className="text-theme-300">{items.length}</span> results</div>
                 </div>
             </LiquidGlassCard>
+
+            {/* Form Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <LiquidGlassCard className="w-full max-w-md p-6 border border-theme-500/30" borderRadius="1rem" blurIntensity="lg">
+                        <h3 className="text-xl font-bold text-white mb-4">
+                            {editingItem ? 'Edit Product' : 'Add New Product'}
+                        </h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-theme-300 mb-1">Product Name</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-theme-800/40 border border-theme-500/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-theme-300"
+                                    value={formData.name} onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-theme-300 mb-1">Category</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-theme-800/40 border border-theme-500/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-theme-300"
+                                    value={formData.category} onChange={e => setFormData(f => ({ ...f, category: e.target.value }))}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-theme-300 mb-1">Unit Price ($)</label>
+                                    <input
+                                        type="number" step="0.01" min="0"
+                                        className="w-full bg-theme-800/40 border border-theme-500/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-theme-300"
+                                        value={formData.price} onChange={e => setFormData(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-theme-300 mb-1">Current Stock</label>
+                                    <input
+                                        type="number" step="1" min="0"
+                                        className="w-full bg-theme-800/40 border border-theme-500/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-theme-300"
+                                        value={formData.stock} onChange={e => setFormData(f => ({ ...f, stock: parseInt(e.target.value) || 0 }))}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-theme-500/20">
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-4 py-2 rounded-lg text-theme-300 hover:text-white hover:bg-theme-700/50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={isWorking}
+                                    className="px-4 py-2 bg-theme-300 text-theme-900 rounded-lg font-semibold hover:bg-theme-100 transition-colors disabled:opacity-50"
+                                >
+                                    {isWorking ? 'Saving...' : 'Save Product'}
+                                </button>
+                            </div>
+                        </div>
+                    </LiquidGlassCard>
+                </div>
+            )}
         </div>
     );
 }

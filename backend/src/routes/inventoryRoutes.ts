@@ -18,6 +18,18 @@ const uploadSchema = z.object({
     })
 });
 
+const itemSchema = z.object({
+    body: z.object({
+        organization_id: z.string().uuid(),
+        name: z.string().min(1),
+        category: z.string().min(1),
+        price: z.number().nonnegative(),
+        stock: z.number().int().nonnegative()
+    })
+});
+
+const updateItemSchema = itemSchema;
+
 function toNumber(value: unknown): number {
     const num = typeof value === 'number' ? value : Number(value || 0);
     return Number.isNaN(num) ? 0 : num;
@@ -132,6 +144,131 @@ router.get('/list', async (req, res) => {
         res.json(items);
     } catch (err: any) {
         console.error('Inventory List Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// /api/inventory/items POST
+router.post('/items', validateRequest(itemSchema), async (req, res) => {
+    try {
+        const { organization_id, name, category, price, stock } = req.body;
+
+        // Ensure at least one warehouse exists for the org
+        const { data: warehouses, error: wErr } = await supabase
+            .from('warehouses')
+            .select('id')
+            .eq('organization_id', organization_id)
+            .limit(1);
+
+        if (wErr || !warehouses || warehouses.length === 0) {
+            return res.status(400).json({ error: 'No warehouse found for this organization. Create a warehouse first.' });
+        }
+        const warehouse_id = warehouses[0].id;
+
+        // Create product
+        const { data: product, error: pErr } = await supabase
+            .from('products')
+            .insert({ organization_id, name, category, selling_price: price, sku: `SKU-${Date.now()}` })
+            .select()
+            .single();
+
+        if (pErr) throw pErr;
+
+        // Set initial stock
+        const { error: iErr } = await supabase
+            .from('inventory')
+            .insert({ warehouse_id, product_id: product.id, current_stock: stock });
+
+        if (iErr) throw iErr;
+
+        res.json({ status: 'ok', id: product.id });
+    } catch (err: any) {
+        console.error('Inventory Add Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// /api/inventory/items/:id PUT
+router.put('/items/:id', validateRequest(updateItemSchema), async (req, res) => {
+    try {
+        const productId = req.params.id;
+        const { organization_id, name, category, price, stock } = req.body;
+
+        // Verify product belongs to org
+        const { data: existing, error: pCheckErr } = await supabase
+            .from('products')
+            .select('id')
+            .eq('id', productId)
+            .eq('organization_id', organization_id)
+            .single();
+
+        if (pCheckErr || !existing) return res.status(404).json({ error: 'Product not found' });
+
+        // Update product
+        const { error: pErr } = await supabase
+            .from('products')
+            .update({ name, category, selling_price: price })
+            .eq('id', productId);
+
+        if (pErr) throw pErr;
+
+        // Find primary warehouse for inventory update
+        const { data: inventoryEntries } = await supabase
+            .from('inventory')
+            .select('warehouse_id, current_stock')
+            .eq('product_id', productId)
+            .limit(1);
+
+        // Update stock in the first warehouse found
+        if (inventoryEntries && inventoryEntries.length > 0) {
+            const { error: iErr } = await supabase
+                .from('inventory')
+                .update({ current_stock: stock })
+                .eq('product_id', productId)
+                .eq('warehouse_id', inventoryEntries[0].warehouse_id);
+            if (iErr) throw iErr;
+        }
+
+        res.json({ status: 'ok' });
+    } catch (err: any) {
+        console.error('Inventory Update Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// /api/inventory/items/:id DELETE
+router.delete('/items/:id', async (req, res) => {
+    try {
+        const productId = req.params.id;
+        const orgId = req.query.organization_id;
+
+        if (!orgId) return res.status(400).json({ error: 'organization_id is required' });
+
+        // Verify product belongs to org
+        const { data: existing, error: pCheckErr } = await supabase
+            .from('products')
+            .select('id')
+            .eq('id', productId)
+            .eq('organization_id', orgId)
+            .single();
+
+        if (pCheckErr || !existing) return res.status(404).json({ error: 'Product not found' });
+
+        // Order of deletion matters due to FK constraints
+        await supabase.from('inventory').delete().eq('product_id', productId);
+        await supabase.from('sales_history').delete().eq('product_id', productId);
+        await supabase.from('inventory_metrics').delete().eq('product_id', productId);
+        await supabase.from('inventory_cost_analysis').delete().eq('product_id', productId);
+        await supabase.from('recommendations').delete().eq('product_id', productId);
+        await supabase.from('news_impact_analysis').delete().eq('product_id', productId);
+
+        // Finally remove the product
+        const { error: pErr } = await supabase.from('products').delete().eq('id', productId);
+        if (pErr) throw pErr;
+
+        res.json({ status: 'ok' });
+    } catch (err: any) {
+        console.error('Inventory Delete Error:', err);
         res.status(500).json({ error: err.message });
     }
 });

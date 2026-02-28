@@ -28,13 +28,6 @@ const FORECAST_DATA = [
     { name: 'Jul', forecast: 3490, actual: 3600 },
 ];
 
-const FALLBACK_KPIS = {
-    total_inventory_value: 2400000,
-    projected_stockouts: 7,
-    holding_cost: 184000,
-    cost_savings: 52000
-};
-
 const INVENTORY_BREAKDOWN = [
     { name: 'Electronics', value: 400, color: '#4A5C6A' }, // theme-500
     { name: 'Apparel', value: 300, color: '#9BA8AB' }, // theme-300
@@ -62,9 +55,9 @@ export default function DashboardOverview() {
 
     const kpiError = queryError ? (queryError as Error).message : null;
 
-    const totalInventoryValue = kpis?.total_inventory_value ?? FALLBACK_KPIS.total_inventory_value;
-    const holdingCost = kpis?.holding_cost ?? FALLBACK_KPIS.holding_cost;
-    const costSavings = kpis?.cost_savings ?? FALLBACK_KPIS.cost_savings;
+    const totalInventoryValue = kpis?.total_inventory_value ?? 0;
+    const holdingCost = kpis?.holding_cost ?? 0;
+    const costSavings = kpis?.cost_savings ?? 0;
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 pb-10">

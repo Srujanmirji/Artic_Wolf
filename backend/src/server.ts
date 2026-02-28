@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
+import salesRoutes from './routes/salesRoutes';
 import forecastRoutes from './routes/forecastRoutes';
 import scenarioRoutes from './routes/scenarioRoutes';
 import newsRoutes from './routes/newsRoutes';
@@ -43,7 +44,7 @@ app.use('/api', apiLimiter);
 
 // Main Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/sales', inventoryRoutes); // Using for /api/sales/upload
+app.use('/api/sales', salesRoutes);
 app.use('/api/inventory', inventoryRoutes); // Using for /api/inventory/metrics
 app.use('/api/forecast', forecastRoutes);
 app.use('/api/scenario', scenarioRoutes);

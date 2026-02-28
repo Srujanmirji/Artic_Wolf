@@ -6,18 +6,6 @@ import { validateRequest } from '../middleware/validateRequest';
 
 const router = Router();
 
-const uploadSchema = z.object({
-    body: z.object({
-        organization_id: z.string().uuid(),
-        warehouse_id: z.string().uuid(),
-        rows: z.array(z.object({
-            product_id: z.string().uuid(),
-            date: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Invalid date format" }),
-            quantity_sold: z.number().int().nonnegative()
-        }))
-    })
-});
-
 const itemSchema = z.object({
     body: z.object({
         organization_id: z.string().uuid(),
@@ -34,30 +22,6 @@ function toNumber(value: unknown): number {
     const num = typeof value === 'number' ? value : Number(value || 0);
     return Number.isNaN(num) ? 0 : num;
 }
-
-// /api/sales/upload
-router.post('/upload', validateRequest(uploadSchema), async (req, res) => {
-    try {
-        const { organization_id, warehouse_id, rows } = req.body;
-
-        // Decorate rows with IDs before insert
-        const insertRows = rows.map((row: any) => ({
-            warehouse_id,
-            product_id: row.product_id,
-            date: row.date,
-            quantity_sold: row.quantity_sold
-        }));
-
-        const { data, error } = await supabase.from('sales_history').insert(insertRows);
-
-        if (error) throw error;
-
-        res.json({ status: 'ok', rows_processed: rows.length });
-    } catch (err: any) {
-        console.error('Upload Error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
 
 // /api/inventory/list
 router.get('/list', async (req, res) => {

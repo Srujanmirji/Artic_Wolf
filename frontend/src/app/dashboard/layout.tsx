@@ -11,14 +11,18 @@ import {
     LayoutDashboard,
     Package,
     TrendingUp,
+    LogOut,
+    Menu,
     Newspaper,
-    Lightbulb,
+    X,
+    Workflow,
+    Activity,
+    BrainCircuit,
+    UserCircle,
+    ShoppingBag,
     Settings,
     Search,
-    Bell,
-    LogOut,
-    GitMerge,
-    GitPullRequest
+    Bell
 } from "lucide-react";
 
 import { useTranslation } from "react-i18next";
@@ -27,13 +31,14 @@ import "@/i18n/config";
 import { useAuthStore } from "@/store/useAuthStore";
 
 const SIDEBAR_LINKS = [
-    { name: "nav.overview", href: "/dashboard", icon: LayoutDashboard },
+    { name: "nav.dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "nav.inventory", href: "/dashboard/inventory", icon: Package },
+    { name: "nav.orders", href: "/dashboard/orders", icon: ShoppingBag },
     { name: "nav.forecast", href: "/dashboard/forecast", icon: TrendingUp },
+    { name: "nav.scenarios", href: "/dashboard/scenarios", icon: Workflow },
+    { name: "nav.recommendations", href: "/dashboard/recommendations", icon: BrainCircuit },
+    { name: "nav.intelligence", href: "/dashboard/intelligence", icon: Activity },
     { name: "nav.news", href: "/dashboard/news", icon: Newspaper },
-    { name: "nav.recommendations", href: "/dashboard/recommendations", icon: Lightbulb },
-    { name: "nav.scenarios", href: "/dashboard/scenarios", icon: GitPullRequest },
-    { name: "nav.transfers", href: "/dashboard/transfers", icon: GitMerge },
     { name: "nav.settings", href: "/dashboard/settings", icon: Settings },
 ];
 

@@ -11,12 +11,23 @@ const resources = {
             "nav": {
                 "overview": "Overview",
                 "inventory": "Inventory",
+                "orders": "Orders",
                 "forecast": "Forecast",
                 "recommendations": "Recommendations",
                 "scenarios": "Scenarios",
                 "transfers": "Transfers",
                 "news": "Market Intelligence",
                 "settings": "Settings"
+            },
+            "orders": {
+                "subtitle": "Record new sales and track recent transactions.",
+                "new_sale": "Record New Sale",
+                "select_product": "Select Product",
+                "quantity": "Quantity Sold",
+                "submit_btn": "Submit Order",
+                "recent_sales": "Recent Sales History",
+                "search": "Search orders...",
+                "sale_recorded": "Sale successfully recorded!"
             },
             "common": {
                 "search_placeholder": "Search...",

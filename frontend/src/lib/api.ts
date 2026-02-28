@@ -117,6 +117,29 @@ export function getDashboardKpis(orgId: string) {
   return apiFetch<DashboardKpis>(`/api/dashboard/kpis?org=${encodeURIComponent(orgId)}`);
 }
 
+export type SalesHistoryItem = {
+  id: string;
+  date: string;
+  quantity_sold: number;
+  product_id: string;
+  products?: {
+    name: string;
+    category: string;
+    selling_price: number;
+  };
+};
+
+export function getSalesHistory(orgId: string) {
+  return apiFetch<SalesHistoryItem[]>(`/api/sales/history?org=${encodeURIComponent(orgId)}`);
+}
+
+export function recordSale(payload: { organization_id: string, product_id: string, quantity_sold: number }) {
+  return apiFetch<{ success: boolean; message: string; new_stock: number }>('/api/sales/record', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export type RecentActivityItem = {
   id: string;
   name: string;

@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe } from 'lucide-react';
+import { Globe, ChevronDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const LANGUAGES = [
     { code: 'en', label: 'English' },
-    { code: 'es', label: 'Español' },
-    { code: 'fr', label: 'Français' },
     { code: 'hi', label: 'हिंदी (Hindi)' },
     { code: 'kn', label: 'ಕನ್ನಡ (Kannada)' },
     { code: 'mr', label: 'मराठी (Marathi)' },
@@ -13,28 +13,66 @@ const LANGUAGES = [
 
 export function LanguageSwitcher() {
     const { i18n } = useTranslation();
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const activeLang = LANGUAGES.find((l) => l.code === i18n.language) || LANGUAGES[0];
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const selectLanguage = (code: string) => {
+        i18n.changeLanguage(code);
+        setIsOpen(false);
+    };
 
     return (
-        <div className="relative group shrink-0">
-            <div className="flex items-center gap-2 bg-theme-800/60 border border-theme-700/50 rounded-full py-2 px-3 sm:px-4 cursor-pointer hover:bg-theme-800 transition-all shadow-inner">
-                <Globe size={16} className="text-theme-300" />
-                <select
-                    value={i18n.language || 'en'}
-                    onChange={(e) => i18n.changeLanguage(e.target.value)}
-                    className="bg-transparent text-sm text-theme-100 font-medium focus:outline-none cursor-pointer appearance-none pr-4"
-                    style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                >
-                    {LANGUAGES.map((lang) => (
-                        <option key={lang.code} value={lang.code} className="bg-theme-900 text-theme-100">
-                            {lang.label}
-                        </option>
-                    ))}
-                </select>
-                {/* Custom arrow for the select */}
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-theme-300 opacity-70">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </div>
-            </div>
+        <div className="relative group shrink-0" ref={dropdownRef}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-2 bg-theme-800/60 border border-theme-700/50 rounded-full py-2 px-3 sm:px-4 cursor-pointer hover:bg-theme-800 hover:border-theme-500/50 transition-all shadow-inner focus:outline-none focus:ring-2 focus:ring-theme-500/50"
+            >
+                <Globe size={16} className={cn("transition-colors", isOpen ? "text-theme-100" : "text-theme-300")} />
+                <span className="text-sm font-medium text-theme-100 hidden sm:block">
+                    {activeLang.label.split(' ')[0]} {/* Abbreviate for mobile nav */}
+                </span>
+                <ChevronDown size={14} className={cn("text-theme-300 transition-transform duration-300", isOpen && "rotate-180")} />
+            </button>
+
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 top-full mt-2 w-48 bg-theme-800 rounded-2xl shadow-xl overflow-hidden py-2 z-[100] backdrop-blur-xl"
+                    >
+                        {LANGUAGES.map((lang) => (
+                            <button
+                                key={lang.code}
+                                onClick={() => selectLanguage(lang.code)}
+                                className={cn(
+                                    "w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between",
+                                    i18n.language === lang.code
+                                        ? "bg-theme-500/20 text-theme-100 font-medium"
+                                        : "text-theme-300 hover:bg-theme-700/50 hover:text-white"
+                                )}
+                            >
+                                {lang.label}
+                                {i18n.language === lang.code && <Check size={16} className="text-theme-300" />}
+                            </button>
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

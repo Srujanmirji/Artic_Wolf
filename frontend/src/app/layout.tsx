@@ -99,6 +99,7 @@ export const metadata: Metadata = {
 
 import { I18nProvider } from "@/components/I18nProvider";
 import { ReactQueryProvider } from "@/components/ReactQueryProvider";
+import { GoogleAuthProviderWrapper } from "@/components/GoogleAuthProvider";
 import Script from "next/script";
 
 export default function RootLayout({
@@ -153,9 +154,11 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <I18nProvider>
-          <ReactQueryProvider>
-            {children}
-          </ReactQueryProvider>
+          <GoogleAuthProviderWrapper>
+            <ReactQueryProvider>
+              {children}
+            </ReactQueryProvider>
+          </GoogleAuthProviderWrapper>
         </I18nProvider>
         <Script id="register-sw" strategy="afterInteractive">
           {`

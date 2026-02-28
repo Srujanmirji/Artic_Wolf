@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { checkOnboardingStatus } from "@/lib/api";
 import {
     LayoutDashboard,
     Package,
@@ -15,7 +16,9 @@ import {
     Settings,
     Search,
     Bell,
-    LogOut
+    LogOut,
+    GitMerge,
+    GitPullRequest
 } from "lucide-react";
 
 import { useTranslation } from "react-i18next";
@@ -29,31 +32,106 @@ const SIDEBAR_LINKS = [
     { name: "nav.forecast", href: "/dashboard/forecast", icon: TrendingUp },
     { name: "nav.news", href: "/dashboard/news", icon: Newspaper },
     { name: "nav.recommendations", href: "/dashboard/recommendations", icon: Lightbulb },
+    { name: "nav.scenarios", href: "/dashboard/scenarios", icon: GitPullRequest },
+    { name: "nav.transfers", href: "/dashboard/transfers", icon: GitMerge },
     { name: "nav.settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const router = useRouter();
     const { t, ready } = useTranslation();
     const userProfile = useAuthStore((state) => state.user);
+    const [onboardingChecked, setOnboardingChecked] = useState(false);
 
     useEffect(() => {
-        // Hydrate from Supabase session if store is empty (user refreshed page)
-        if (!userProfile) {
-            supabase.auth.getSession().then(({ data: { session } }) => {
-                if (session?.user) {
-                    const meta = session.user.user_metadata;
-                    useAuthStore.getState().login({
-                        id: session.user.id,
-                        email: session.user.email,
-                        name: `${meta?.first_name || ''} ${meta?.last_name || ''}`.trim() || meta?.full_name || meta?.name || 'User',
-                        picture: meta?.avatar_url || meta?.picture,
-                        authProvider: 'supabase'
-                    });
+        const hydrateUser = (session: any) => {
+            // Don't overwrite if user is already logged in via Google OAuth
+            const currentUser = useAuthStore.getState().user;
+            if (currentUser?.authProvider === 'google') return;
+
+            if (session?.user) {
+                const meta = session.user.user_metadata;
+                useAuthStore.getState().login({
+                    id: session.user.id,
+                    email: session.user.email,
+                    name: `${meta?.first_name || ''} ${meta?.last_name || ''}`.trim() || meta?.full_name || meta?.name || 'User',
+                    picture: meta?.avatar_url || meta?.picture,
+                    authProvider: 'supabase'
+                });
+            } else {
+                // Don't logout if user is authenticated via Google
+                if (!currentUser?.authProvider) {
+                    useAuthStore.getState().logout();
                 }
-            });
+            }
+        };
+
+        // Initial fetch
+        supabase.auth.getSession().then(({ data: { session } }) => hydrateUser(session));
+
+        // Subscribe to changes (e.g. from Settings updates or sign out)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            hydrateUser(session);
+        });
+
+        // Listen for manual component-to-component overrides if session reload lags
+        const handleProfileUpdated = () => {
+            supabase.auth.getSession().then(({ data: { session } }) => hydrateUser(session));
+        };
+        window.addEventListener('profileUpdated', handleProfileUpdated);
+
+        return () => {
+            subscription.unsubscribe();
+            window.removeEventListener('profileUpdated', handleProfileUpdated);
+        };
+    }, []);
+
+    // Onboarding gate: Redirect users who haven't completed onboarding
+    useEffect(() => {
+        if (!userProfile?.id) return;
+
+        // Check if user already has a saved orgId (they've onboarded)
+        const cachedOrgId = localStorage.getItem('aagam_org_id');
+        if (cachedOrgId) {
+            setOnboardingChecked(true);
+            return;
         }
-    }, [userProfile]);
+
+        checkOnboardingStatus(userProfile.id)
+            .then((res) => {
+                if (!res.isOnboarded) {
+                    router.replace('/onboarding');
+                } else {
+                    if (res.organization_id) {
+                        localStorage.setItem('aagam_org_id', res.organization_id);
+                    }
+                    setOnboardingChecked(true);
+                }
+            })
+            .catch((err) => {
+                console.warn('Onboarding check failed, redirecting to onboarding:', err);
+                router.replace('/onboarding');
+            });
+    }, [userProfile?.id, router]);
+
+    // Show loading state while checking onboarding
+    if (!onboardingChecked) {
+        return (
+            <div className="flex h-screen w-full bg-theme-900 items-center justify-center">
+                <div className="flex flex-col items-center gap-4 animate-pulse">
+                    <Image
+                        src="/aagam-logo.png"
+                        alt="Aagam AI"
+                        width={160}
+                        height={45}
+                        className="opacity-50 w-auto h-8"
+                    />
+                    <p className="text-theme-500 text-sm font-medium">Loading workspace...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen w-full bg-theme-900 text-theme-100 font-sans p-2 sm:p-4 lg:p-6 overflow-hidden">
@@ -66,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="absolute top-[40%] left-[30%] w-[30rem] h-[30rem] bg-theme-500/10 rounded-full blur-[100px] pointer-events-none" />
 
                 {/* Top Navbar Area */}
-                <header className="flex items-center justify-between px-8 py-6 relative z-10 shrink-0">
+                <header className="flex items-center justify-between px-8 py-6 relative z-50 shrink-0">
                     <div className="flex items-center gap-12">
                         {/* Logo */}
                         <div className="flex items-center gap-3 shrink-0">
@@ -134,14 +212,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </nav>
 
                         <div className="mt-auto pt-8">
-                            <button className="flex items-center justify-center w-12 h-12 rounded-full text-theme-500 hover:bg-theme-700/30 hover:text-rose-400 transition-colors">
+                            <button
+                                onClick={async () => {
+                                    useAuthStore.getState().logout();
+                                    localStorage.removeItem('aagam_org_id');
+                                    await supabase.auth.signOut();
+                                    window.location.href = '/';
+                                }}
+                                className="flex items-center justify-center w-12 h-12 rounded-full text-theme-500 hover:bg-theme-700/30 hover:text-rose-400 transition-colors"
+                            >
                                 <LogOut size={22} />
                             </button>
                         </div>
                     </aside>
 
                     {/* Content Frame */}
-                    <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar rounded-3xl">
+                    <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar rounded-3xl pb-20">
                         {children}
                     </main>
                 </div>

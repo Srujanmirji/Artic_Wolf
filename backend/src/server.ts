@@ -14,6 +14,7 @@ import sentimentRoutes from './routes/sentimentRoutes';
 import newsImpactRoutes from './routes/newsImpactRoutes';
 import transferRoutes from './routes/transferRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
+import onboardingRoutes from './routes/onboardingRoutes';
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ app.use('/api/sentiment', sentimentRoutes);
 app.use('/api/news-impact', newsImpactRoutes);
 app.use('/api/transfer', transferRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });

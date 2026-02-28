@@ -6,6 +6,7 @@ import { ExternalLink, Clock, TrendingUp, AlertCircle, RefreshCw, Loader2 } from
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { getDefaultOrgId, getLatestNews, fetchMarketIntelligence, type NewsItem } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
+import { useTranslation } from "react-i18next";
 
 type NewsCard = {
     id: string | number;
@@ -19,35 +20,36 @@ type NewsCard = {
     url?: string | null;
 };
 
-function impactFromSentiment(score?: number | null) {
+function impactFromSentiment(score?: number | null, t?: any) {
     if (score === null || score === undefined) {
-        return { label: "Market Impact", className: "text-theme-300 bg-theme-900/30 border-theme-500/20" };
+        return { label: t ? t("news.market_impact", "Market Impact") : "Market Impact", className: "text-theme-300 bg-theme-900/30 border-theme-500/20" };
     }
     if (score >= 0.35) {
-        return { label: "Positive Impact", className: "text-theme-100 bg-theme-700/20 border-theme-700/30" };
+        return { label: t ? t("news.positive_impact", "Positive Impact") : "Positive Impact", className: "text-theme-100 bg-theme-700/20 border-theme-700/30" };
     }
     if (score <= -0.35) {
-        return { label: "High Impact", className: "text-white bg-theme-500/20 border-theme-500/30" };
+        return { label: t ? t("news.high_impact", "High Impact") : "High Impact", className: "text-white bg-theme-500/20 border-theme-500/30" };
     }
-    return { label: "Medium Impact", className: "text-theme-300 bg-theme-900/30 border-theme-500/20" };
+    return { label: t ? t("news.medium_impact", "Medium Impact") : "Medium Impact", className: "text-theme-300 bg-theme-900/30 border-theme-500/20" };
 }
 
-function mapNewsItem(item: NewsItem): NewsCard {
-    const impact = impactFromSentiment(item.sentiment_score);
+function mapNewsItem(item: NewsItem, t: any): NewsCard {
+    const impact = impactFromSentiment(item.sentiment_score, t);
     return {
         id: item.id,
-        source: item.source || "Industry Feed",
-        title: item.title || "Untitled Update",
-        summary: item.description || "No summary available for this article.",
+        source: item.source || t("news.industry_feed", "Industry Feed"),
+        title: item.title || t("news.untitled", "Untitled Update"),
+        summary: item.description || t("news.no_summary", "No summary available for this article."),
         time: timeAgo(item.published_at || undefined),
         impact: impact.label,
         impactColor: impact.className,
-        type: item.industry || "Market Trend",
+        type: item.industry || t("news.market_trend", "Market Trend"),
         url: item.url || null
     };
 }
 
 export default function NewsIntelligencePage() {
+    const { t } = useTranslation();
     const orgId = getDefaultOrgId();
     const queryClient = useQueryClient();
 
@@ -69,16 +71,16 @@ export default function NewsIntelligencePage() {
 
     const cards = useMemo(() => {
         if (!newsItemsData || !newsItemsData.length) return [];
-        return newsItemsData.map(mapNewsItem);
-    }, [newsItemsData]);
+        return newsItemsData.map((item) => mapNewsItem(item, t));
+    }, [newsItemsData, t]);
 
     return (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
 
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-white tracking-tight">Market Intelligence</h2>
-                    <p className="text-theme-300 mt-1">Real-time alerts and news impacting your supply chain</p>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">{t("news.title", "Market Intelligence")}</h2>
+                    <p className="text-theme-300 mt-1">{t("news.subtitle", "Real-time alerts and news impacting your supply chain")}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
@@ -87,16 +89,16 @@ export default function NewsIntelligencePage() {
                         className="bg-theme-800/60 border border-theme-500/30 text-white px-4 py-2 rounded-lg font-medium hover:bg-theme-700/80 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
                     >
                         {isFetching ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                        <span className="hidden sm:inline">{isFetching ? "Analyzing..." : "Refresh Intelligence"}</span>
+                        <span className="hidden sm:inline">{isFetching ? t("common.analyzing", "Analyzing...") : t("news.refresh", "Refresh Intelligence")}</span>
                     </button>
                     <div className="bg-theme-800/60 flex p-1 rounded-lg border border-theme-500/30">
-                        <button className="px-4 py-1.5 text-sm font-medium bg-theme-500/40 text-white rounded-md shadow-sm">Latest</button>
-                        <button className="px-4 py-1.5 text-sm font-medium text-theme-300 hover:text-white transition-colors">Saved</button>
+                        <button className="px-4 py-1.5 text-sm font-medium bg-theme-500/40 text-white rounded-md shadow-sm">{t("common.latest", "Latest")}</button>
+                        <button className="px-4 py-1.5 text-sm font-medium text-theme-300 hover:text-white transition-colors">{t("common.saved", "Saved")}</button>
                     </div>
                 </div>
             </div>
             {!orgId && (
-                <p className="text-xs text-theme-500">Set NEXT_PUBLIC_ORG_ID to load live news.</p>
+                <p className="text-xs text-theme-500">{t("news.no_org_id", "Set NEXT_PUBLIC_ORG_ID to load live news.")}</p>
             )}
             {loadError && (
                 <p className="text-xs text-theme-500">{loadError}</p>

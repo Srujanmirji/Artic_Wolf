@@ -8,10 +8,10 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
-import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 import { useAuthStore } from "@/store/useAuthStore";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
+import { useGoogleLogin } from "@react-oauth/google";
 
 const ShaderAnimation = dynamic(
   () => import("@/components/ui/shader-animation").then((mod) => mod.ShaderAnimation),
@@ -48,37 +48,6 @@ function SignInContent({ className }: SignInPageProps) {
   const router = useRouter();
   const loginStore = useAuthStore((state) => state.login);
 
-  const login = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      console.log('Google login success - fetching profile...');
-      try {
-        const userInfoRes = await fetch(`https://www.googleapis.com/oauth2/v1/userinfo?access_token=${tokenResponse.access_token}`, {
-          headers: {
-            Authorization: `Bearer ${tokenResponse.access_token}`,
-            Accept: 'application/json'
-          }
-        });
-        const userInfo = await userInfoRes.json();
-        console.log('Google user info:', userInfo);
-
-        loginStore({
-          id: userInfo.id,
-          email: userInfo.email,
-          name: userInfo.name,
-          picture: userInfo.picture,
-          authProvider: 'google'
-        });
-
-        router.push('/dashboard');
-      } catch (err) {
-        console.error("Failed to fetch user info", err);
-        // Fallback to push anyway so they aren't stuck
-        router.push('/dashboard');
-      }
-    },
-    onError: (error) => console.log('Google login failed:', error),
-  });
-
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code" | "success">("email");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -87,6 +56,50 @@ function SignInContent({ className }: SignInPageProps) {
   const [reverseCanvasVisible, setReverseCanvasVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        setIsGoogleLoading(true);
+        setErrorMsg("");
+
+        // Fetch user info from Google using the access token
+        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        const userInfo = await userInfoRes.json();
+
+        // Hydrate auth store with Google user data directly
+        loginStore({
+          id: userInfo.sub,
+          email: userInfo.email,
+          name: userInfo.name || `${userInfo.given_name || ''} ${userInfo.family_name || ''}`.trim(),
+          picture: userInfo.picture,
+          authProvider: 'google'
+        });
+
+        // Navigate to dashboard
+        router.push('/dashboard');
+      } catch (err: any) {
+        console.error("Google login error:", err);
+        setErrorMsg(err.message || "Failed to sign in with Google");
+        setIsGoogleLoading(false);
+      }
+    },
+    onError: (error) => {
+      console.error("Google OAuth error:", error);
+      setErrorMsg("Google sign-in was cancelled or failed");
+      setIsGoogleLoading(false);
+    },
+    flow: 'implicit',
+  });
+
+  const handleGoogleLogin = () => {
+    setIsGoogleLoading(true);
+    setErrorMsg("");
+    googleLogin();
+  };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,7 +252,7 @@ function SignInContent({ className }: SignInPageProps) {
                     </div>
 
                     <div className="space-y-6">
-                      <button type="button" onClick={() => login()} className="w-full relative z-30 flex items-center justify-center gap-3 bg-slate-800/50 hover:bg-slate-700/60 border border-slate-700/50 text-white rounded-full py-4 px-4 transition-all duration-300 shadow-sm group">
+                      <button type="button" onClick={handleGoogleLogin} disabled={isSubmitting} className="w-full relative z-30 flex items-center justify-center gap-3 bg-slate-800/50 hover:bg-slate-700/60 border border-slate-700/50 text-white rounded-full py-4 px-4 transition-all duration-300 shadow-sm group disabled:opacity-50">
                         <span className="text-lg bg-white text-slate-900 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs group-hover:scale-110 transition-transform">G</span>
                         <span className="font-medium">Sign in with Google</span>
                       </button>
@@ -439,8 +452,6 @@ function SignInContent({ className }: SignInPageProps) {
 
 export default function SignInPage({ className }: SignInPageProps) {
   return (
-    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "171027725052-tgt7dj6mrtm73326l474ohlrv03retc4.apps.googleusercontent.com"}>
-      <SignInContent className={className} />
-    </GoogleOAuthProvider>
+    <SignInContent className={className} />
   );
 }

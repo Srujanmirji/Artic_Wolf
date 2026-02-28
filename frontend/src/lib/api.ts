@@ -61,6 +61,11 @@ export function getApiBaseUrl() {
 }
 
 export function getDefaultOrgId() {
+  // Prefer the dynamically assigned org ID from onboarding
+  if (typeof window !== 'undefined') {
+    const dynamicOrgId = localStorage.getItem('aagam_org_id');
+    if (dynamicOrgId) return dynamicOrgId;
+  }
   return process.env.NEXT_PUBLIC_ORG_ID || "";
 }
 
@@ -110,6 +115,19 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
 export function getDashboardKpis(orgId: string) {
   return apiFetch<DashboardKpis>(`/api/dashboard/kpis?org=${encodeURIComponent(orgId)}`);
+}
+
+export type RecentActivityItem = {
+  id: string;
+  name: string;
+  type: string;
+  amount: string | null;
+  category: string;
+  created_at: string;
+};
+
+export function getRecentActivity(orgId: string) {
+  return apiFetch<RecentActivityItem[]>(`/api/dashboard/recent-activity?org=${encodeURIComponent(orgId)}`);
 }
 
 export function getInventoryList(orgId: string) {
@@ -186,3 +204,72 @@ export function runForecastAnalytics(orgId: string) {
     }),
   });
 }
+
+export type ScenarioResult = {
+  product_id: string;
+  warehouse_id: string;
+  base_forecast_demand: number;
+  adjusted_forecast_demand: number;
+  base_safety_stock: number;
+  adjusted_safety_stock: number;
+  base_reorder_point: number;
+  adjusted_reorder_point: number;
+};
+
+export function applyScenario(orgId: string, scenarioId: string) {
+  return apiFetch<{ count: number; results: ScenarioResult[] }>('/api/scenarios/apply', {
+    method: 'POST',
+    body: JSON.stringify({
+      organization_id: orgId,
+      scenario_id: scenarioId,
+    }),
+  });
+}
+
+export type TransferRecommendation = {
+  product_id: string;
+  from_warehouse: string;
+  to_warehouse: string;
+  quantity: number;
+};
+
+export function optimizeTransfers(orgId: string) {
+  return apiFetch<{ count: number; results: TransferRecommendation[] }>('/api/transfers/optimize', {
+    method: 'POST',
+    body: JSON.stringify({
+      organization_id: orgId,
+    }),
+  });
+}
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+
+export type OnboardingCheckResponse = {
+  isOnboarded: boolean;
+  organization_id: string | null;
+};
+
+export type OnboardingPayload = {
+  user_id: string;
+  business_name: string;
+  business_type: string;
+  location_count: number;
+  region: string;
+  product_types: string;
+  inventory_category: string;
+  monthly_volume: string;
+  seasonal_demand: boolean;
+  supplier_lead_time: number;
+};
+
+export function checkOnboardingStatus(userId: string) {
+  return apiFetch<OnboardingCheckResponse>(`/api/onboarding/check?user_id=${encodeURIComponent(userId)}`);
+}
+
+export function submitOnboarding(payload: OnboardingPayload) {
+  return apiFetch<{ message: string; organization_id: string }>('/api/onboarding/submit', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+

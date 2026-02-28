@@ -4,22 +4,21 @@ import React, { useState, useEffect } from "react";
 import { User, Bell, Shield, Key, Database, Globe } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
 
 export default function SettingsPage() {
+    const { t } = useTranslation();
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [picture, setPicture] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState("");
-    const [isSupabaseUser, setIsSupabaseUser] = useState(false);
-
     useEffect(() => {
         const loadProfile = async () => {
             const { data: { session } } = await supabase.auth.getSession();
 
             if (session?.user) {
-                setIsSupabaseUser(true);
                 setEmail(session.user.email || "");
                 const meta = session.user.user_metadata;
 
@@ -27,28 +26,6 @@ export default function SettingsPage() {
                 setFirstName(meta?.first_name || meta?.given_name || meta?.full_name?.split(' ')[0] || meta?.name?.split(' ')[0] || "");
                 setLastName(meta?.last_name || meta?.family_name || meta?.full_name?.split(' ').slice(1).join(' ') || meta?.name?.split(' ').slice(1).join(' ') || "");
                 setPicture(meta?.avatar_url || meta?.picture || "");
-            } else {
-                // Fallback to Google local storage
-                const profileStr = localStorage.getItem('userProfile');
-                if (profileStr) {
-                    try {
-                        const profile = JSON.parse(profileStr);
-                        setEmail(profile.email || "");
-                        setPicture(profile.picture || "");
-
-                        // Handle single name vs first/last name
-                        if (profile.given_name) {
-                            setFirstName(profile.given_name);
-                            setLastName(profile.family_name || "");
-                        } else if (profile.name) {
-                            const nameParts = profile.name.split(' ');
-                            setFirstName(nameParts[0]);
-                            setLastName(nameParts.slice(1).join(' '));
-                        }
-                    } catch (e) {
-                        console.error("Failed to parse user profile", e);
-                    }
-                }
             }
         };
 
@@ -61,29 +38,15 @@ export default function SettingsPage() {
         setSaveMessage("");
 
         try {
-            if (isSupabaseUser) {
-                // Update Supabase auth db
-                const { error } = await supabase.auth.updateUser({
-                    data: {
-                        first_name: firstName,
-                        last_name: lastName,
-                    }
-                });
+            // Update Supabase auth db
+            const { error } = await supabase.auth.updateUser({
+                data: {
+                    first_name: firstName,
+                    last_name: lastName,
+                }
+            });
 
-                if (error) throw error;
-            }
-
-            // Always update LocalStorage so the top header can read it easily
-            const existingProfileStr = localStorage.getItem('userProfile');
-            let updatedProfile = existingProfileStr ? JSON.parse(existingProfileStr) : {};
-
-            updatedProfile.given_name = firstName;
-            updatedProfile.family_name = lastName;
-            updatedProfile.name = `${firstName} ${lastName}`.trim();
-            updatedProfile.email = email;
-            if (picture) updatedProfile.picture = picture;
-
-            localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+            if (error) throw error;
 
             // Notify header to refetch session locally across app
             window.dispatchEvent(new Event('profileUpdated'));
@@ -101,8 +64,8 @@ export default function SettingsPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-500">
             <div>
-                <h2 className="text-2xl font-bold text-white">Settings</h2>
-                <p className="text-theme-300 mt-1">Manage your account settings and preferences.</p>
+                <h2 className="text-2xl font-bold text-white">{t("settings.title", "Settings")}</h2>
+                <p className="text-theme-300 mt-1">{t("settings.description", "Manage your account settings and preferences.")}</p>
             </div>
 
             <div className="flex flex-col md:flex-row gap-8">
@@ -129,7 +92,7 @@ export default function SettingsPage() {
 
                 {/* Settings Form Content */}
                 <div className="flex-1 bg-theme-800/40 backdrop-blur-sm border border-theme-500/20 rounded-xl p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-white mb-6 border-b border-theme-500/20 pb-4">Personal Information</h3>
+                    <h3 className="text-lg font-semibold text-white mb-6 border-b border-theme-500/20 pb-4">{t("settings.personal_info", "Personal Information")}</h3>
 
                     <form className="space-y-6" onSubmit={handleSave}>
                         {saveMessage && (
@@ -156,7 +119,7 @@ export default function SettingsPage() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-theme-300">First Name</label>
+                                <label className="text-sm font-medium text-theme-300">{t("settings.first_name", "First Name")}</label>
                                 <input
                                     type="text"
                                     value={firstName}
@@ -165,7 +128,7 @@ export default function SettingsPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-theme-300">Last Name</label>
+                                <label className="text-sm font-medium text-theme-300">{t("settings.last_name", "Last Name")}</label>
                                 <input
                                     type="text"
                                     value={lastName}
@@ -174,7 +137,7 @@ export default function SettingsPage() {
                                 />
                             </div>
                             <div className="space-y-2 md:col-span-2">
-                                <label className="text-sm font-medium text-theme-300">Email Address (Read Only)</label>
+                                <label className="text-sm font-medium text-theme-300">{t("settings.email_readonly", "Email Address (Read Only)")}</label>
                                 <input
                                     type="email"
                                     value={email}
@@ -183,14 +146,14 @@ export default function SettingsPage() {
                                 />
                             </div>
                             <div className="space-y-2 md:col-span-2">
-                                <label className="text-sm font-medium text-theme-300">Role</label>
-                                <input type="text" disabled defaultValue="Admin / Supply Chain Manager" className="w-full bg-theme-900/30 border border-theme-500/20 rounded-lg py-2 px-3 text-sm text-theme-500 cursor-not-allowed" />
+                                <label className="text-sm font-medium text-theme-300">{t("settings.role", "Role")}</label>
+                                <input type="text" disabled defaultValue={t("settings.role_value", "Admin / Supply Chain Manager")} className="w-full bg-theme-900/30 border border-theme-500/20 rounded-lg py-2 px-3 text-sm text-theme-500 cursor-not-allowed" />
                             </div>
                         </div>
 
                         <div className="pt-4 border-t border-theme-500/20 flex justify-end gap-3">
                             <button type="button" className="px-4 py-2 text-theme-300 text-sm font-medium hover:text-white transition-colors">
-                                Cancel
+                                {t("common.cancel", "Cancel")}
                             </button>
                             <button type="submit" disabled={isSaving} className="px-5 py-2 bg-theme-300 text-theme-900 text-sm font-bold rounded-lg shadow-[0_0_15px_rgba(155,168,171,0.2)] hover:bg-theme-100 transition-all disabled:opacity-50 flex items-center gap-2">
                                 {isSaving ? (
@@ -199,10 +162,10 @@ export default function SettingsPage() {
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        Saving...
+                                        {t("common.saving", "Saving...")}
                                     </>
                                 ) : (
-                                    "Save Changes"
+                                    t("common.save_changes", "Save Changes")
                                 )}
                             </button>
                         </div>

@@ -1,8 +1,8 @@
 export function formatCurrency(value?: number | null, options?: Intl.NumberFormatOptions) {
   if (value === null || value === undefined || Number.isNaN(value)) return "--";
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
     maximumFractionDigits: 0,
     ...options
   }).format(value);
@@ -10,7 +10,7 @@ export function formatCurrency(value?: number | null, options?: Intl.NumberForma
 
 export function formatCompactNumber(value?: number | null) {
   if (value === null || value === undefined || Number.isNaN(value)) return "--";
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     notation: "compact",
     maximumFractionDigits: 1
   }).format(value);

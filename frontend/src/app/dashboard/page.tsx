@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
     LineChart,
@@ -14,32 +14,16 @@ import {
     Bar
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { getDashboardKpis, getDefaultOrgId, type DashboardKpis } from "@/lib/api";
+import { getDashboardKpis, getDefaultOrgId, runForecastAnalytics, getRecentActivity, type DashboardKpis } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { useTranslation } from "react-i18next";
-
-const FORECAST_DATA = [
-    { name: 'Jan', forecast: 4000, actual: 4400 },
-    { name: 'Feb', forecast: 3000, actual: 3200 },
-    { name: 'Mar', forecast: 2000, actual: 2800 },
-    { name: 'Apr', forecast: 2780, actual: 2908 },
-    { name: 'May', forecast: 1890, actual: 1800 },
-    { name: 'Jun', forecast: 2390, actual: 2500 },
-    { name: 'Jul', forecast: 3490, actual: 3600 },
-];
 
 const INVENTORY_BREAKDOWN = [
     { name: 'Electronics', value: 400, color: '#4A5C6A' }, // theme-500
     { name: 'Apparel', value: 300, color: '#9BA8AB' }, // theme-300
     { name: 'Home Goods', value: 300, color: '#CCD0CF' }, // theme-100
     { name: 'Other', value: 200, color: '#253745' }, // theme-700
-];
-
-const RECENT_ORDERS = [
-    { id: 1, name: 'Logistics Pro', type: 'Restock', amount: '-$12,400', date: 'Today, 09:24', icon: 'LP', color: 'bg-theme-500/20 text-theme-100' },
-    { id: 2, name: 'TechSupply Inc', type: 'Fulfillment', amount: '-$8,250', date: 'Yesterday', icon: 'TS', color: 'bg-theme-300/20 text-white' },
-    { id: 3, name: 'Global Freight', type: 'Shipping', amount: '-$3,100', date: 'Mar 12', icon: 'GF', color: 'bg-theme-700/40 text-theme-300' },
 ];
 
 const SPARK_DATA = [
@@ -55,7 +39,45 @@ export default function DashboardOverview() {
         enabled: !!orgId
     });
 
+    const { data: forecastRes, error: forecastError } = useQuery({
+        queryKey: ['forecastOverview', orgId],
+        queryFn: () => runForecastAnalytics(orgId),
+        enabled: !!orgId
+    });
+
+    const { data: recentActivity } = useQuery({
+        queryKey: ['recentActivity', orgId],
+        queryFn: () => getRecentActivity(orgId),
+        enabled: !!orgId,
+        refetchInterval: 30000,
+    });
+
+    const chartData = useMemo(() => {
+        if (!forecastRes?.results || forecastRes.results.length === 0) return [];
+
+        const aggregates: Record<string, { name: string; actual: number; forecast: number }> = {};
+
+        forecastRes.results.forEach(point => {
+            const dateObj = new Date(point.forecast_date);
+            const monthKey = dateObj.toLocaleString('default', { month: 'short' });
+
+            if (!aggregates[monthKey]) {
+                aggregates[monthKey] = { name: monthKey, actual: 0, forecast: 0 };
+            }
+
+            aggregates[monthKey].forecast += point.forecast_quantity;
+            // Simulated actuals using standard random modifier just for demo purpose
+            aggregates[monthKey].actual += point.forecast_date
+                ? Math.round(point.forecast_quantity * (0.8 + (point.forecast_date.charCodeAt(point.forecast_date.length - 1) % 5) * 0.1))
+                : point.forecast_quantity;
+        });
+
+        // Return sorted or just object values. Real query typically returns sorted by date
+        return Object.values(aggregates).slice(0, 7); // Show max 7 months
+    }, [forecastRes]);
+
     const kpiError = queryError ? (queryError as Error).message : null;
+    const forecastErrMsg = forecastError ? (forecastError as Error).message : null;
 
     const totalInventoryValue = kpis?.total_inventory_value ?? 0;
     const holdingCost = kpis?.holding_cost ?? 0;
@@ -86,6 +108,9 @@ export default function DashboardOverview() {
             {kpiError && (
                 <p className="text-xs text-theme-500">{kpiError}</p>
             )}
+            {forecastErrMsg && (
+                <p className="text-xs text-theme-500">{forecastErrMsg}</p>
+            )}
 
             {/* Main Grid Layout */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -101,7 +126,7 @@ export default function DashboardOverview() {
                         </div>
                         <div className="h-[250px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={FORECAST_DATA} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                                     <defs>
                                         <pattern id="stripe" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
                                             <line x1="0" y1="0" x2="0" y2="8" stroke="#4A5C6A" strokeWidth="3" strokeOpacity="0.3" />
@@ -239,23 +264,29 @@ export default function DashboardOverview() {
                             <button className="text-sm text-theme-300 hover:text-white transition-colors">{t("common.view_all", "View All >")}</button>
                         </div>
                         <div className="space-y-5">
-                            {RECENT_ORDERS.map((order) => (
-                                <div key={order.id} className="flex items-center justify-between group hover:bg-theme-700/20 p-2 -mx-2 rounded-xl transition-colors cursor-pointer">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${order.color}`}>
-                                            {order.icon}
+                            {!recentActivity || recentActivity.length === 0 ? (
+                                <p className="text-theme-500 text-sm text-center py-4">No activity yet. Run forecasts to generate recommendations.</p>
+                            ) : recentActivity.map((item) => {
+                                const initials = item.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                                const date = item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+                                return (
+                                    <div key={item.id} className="flex items-center justify-between group hover:bg-theme-700/20 p-2 -mx-2 rounded-xl transition-colors cursor-pointer">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold bg-theme-500/20 text-theme-100">
+                                                {initials}
+                                            </div>
+                                            <div>
+                                                <p className="text-white font-medium text-sm">{item.name}</p>
+                                                <p className="text-theme-500 text-xs">{item.type}{item.category ? ` · ${item.category}` : ''}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-white font-medium text-sm">{order.name}</p>
-                                            <p className="text-theme-500 text-xs">{order.type}</p>
+                                        <div className="text-right">
+                                            <p className="text-white font-medium text-sm group-hover:text-theme-300 transition-colors">{item.amount || '—'}</p>
+                                            <p className="text-theme-500 text-xs">{date}</p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-white font-medium text-sm group-hover:text-theme-300 transition-colors">{order.amount}</p>
-                                        <p className="text-theme-500 text-xs">{order.date}</p>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </LiquidGlassCard>
 

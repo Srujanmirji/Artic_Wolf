@@ -25,7 +25,7 @@ export const useAuthStore = create<AuthState>()(
             logout: () => set({ user: null, isAuthenticated: false }),
         }),
         {
-            name: 'aagam-auth-storage', // unique name for localStorage key
+            name: 'aagam-auth',
         }
     )
 );

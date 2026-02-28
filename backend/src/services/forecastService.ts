@@ -10,6 +10,7 @@ export type ForecastInput = {
     alpha?: number;
     service_level?: number;
     lead_time_days?: number;
+    seasonal_demand?: boolean;
 };
 
 export type ForecastResult = {
@@ -57,18 +58,35 @@ export async function runForecast(input: ForecastInput): Promise<ForecastResult>
         : 0;
 
     if (!lead_time_days) {
-        const { data: supplierData, error: supplierError } = await supabase
-            .from('suppliers')
-            .select('avg_lead_time_days')
-            .eq('product_id', product_id)
+        // Fallback chain: explicit param → business_profiles → suppliers table → default 7
+        const { data: bpData } = await supabase
+            .from('business_profiles')
+            .select('supplier_lead_time')
+            .eq('organization_id', organization_id)
             .maybeSingle();
 
-        if (supplierError) throw supplierError;
+        if (bpData?.supplier_lead_time && bpData.supplier_lead_time > 0) {
+            lead_time_days = bpData.supplier_lead_time;
+        } else {
+            const { data: supplierData, error: supplierError } = await supabase
+                .from('suppliers')
+                .select('avg_lead_time_days')
+                .eq('product_id', product_id)
+                .maybeSingle();
 
-        lead_time_days = supplierData?.avg_lead_time_days || 7;
+            if (supplierError) throw supplierError;
+            lead_time_days = supplierData?.avg_lead_time_days || 7;
+        }
     }
 
-    const safety_stock = safetyStock(sigma_d, lead_time_days, serviceLevel);
+    let computed_safety_stock = safetyStock(sigma_d, lead_time_days, serviceLevel);
+
+    // Apply seasonal demand multiplier: +25% safety buffer when demand is seasonal
+    if (input.seasonal_demand) {
+        computed_safety_stock = Math.ceil(computed_safety_stock * 1.25);
+    }
+
+    const safety_stock = computed_safety_stock;
     const reorder_point = (avg_daily_demand * lead_time_days) + safety_stock;
 
     const metricsPayload = {
@@ -123,6 +141,16 @@ export async function runForecastForOrganization(organization_id: string, period
     service_level?: number;
     lead_time_days?: number;
 }) {
+    // Fetch business profile once for the entire org run
+    const { data: businessProfile } = await supabase
+        .from('business_profiles')
+        .select('seasonal_demand, supplier_lead_time')
+        .eq('organization_id', organization_id)
+        .maybeSingle();
+
+    const orgLeadTime = options?.lead_time_days || businessProfile?.supplier_lead_time || undefined;
+    const orgSeasonalDemand = businessProfile?.seasonal_demand ?? false;
+
     const { data: warehouses, error: warehouseError } = await supabase
         .from('warehouses')
         .select('id')
@@ -162,7 +190,8 @@ export async function runForecastForOrganization(organization_id: string, period
             method: options?.method,
             alpha: options?.alpha,
             service_level: options?.service_level,
-            lead_time_days: options?.lead_time_days
+            lead_time_days: orgLeadTime,
+            seasonal_demand: orgSeasonalDemand
         });
         results.push(result);
     }

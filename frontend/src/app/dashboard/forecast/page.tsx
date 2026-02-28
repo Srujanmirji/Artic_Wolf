@@ -5,8 +5,10 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Zap, TrendingUp, CalendarDays, Loader2 } from "lucide-react";
 import { LiquidGlassCard } from "@/components/LiquidGlassCard";
 import { runForecastAnalytics, getDefaultOrgId, type ForecastResponse } from "@/lib/api";
+import { useTranslation } from "react-i18next";
 
 export default function ForecastPage() {
+    const { t } = useTranslation();
     const orgId = getDefaultOrgId();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -71,11 +73,11 @@ export default function ForecastPage() {
                         <TrendingUp size={64} />
                     </div>
                     <div className="relative z-10">
-                        <p className="text-theme-300 text-sm font-medium mb-1">Estimated Q3 Growth</p>
+                        <p className="text-theme-300 text-sm font-medium mb-1">{t("forecast.estimated_growth", "Estimated Q3 Growth")}</p>
                         <h2 className="text-3xl font-bold text-white mb-2">+24.8%</h2>
                         <div className="flex items-center gap-2 text-xs text-theme-100">
-                            <span className="bg-theme-500/20 px-2 py-0.5 rounded-full border border-theme-500/30">High Confidence</span>
-                            <span className="text-theme-300">Based on historical patterns</span>
+                            <span className="bg-theme-500/20 px-2 py-0.5 rounded-full border border-theme-500/30">{t("forecast.high_confidence", "High Confidence")}</span>
+                            <span className="text-theme-300">{t("forecast.based_on_historical", "Based on historical patterns")}</span>
                         </div>
                     </div>
                 </LiquidGlassCard>
@@ -85,11 +87,11 @@ export default function ForecastPage() {
                         <Zap size={64} />
                     </div>
                     <div className="relative z-10">
-                        <p className="text-theme-300 text-sm font-medium mb-1">AI Prediction Variance</p>
+                        <p className="text-theme-300 text-sm font-medium mb-1">{t("forecast.ai_variance", "AI Prediction Variance")}</p>
                         <h2 className="text-3xl font-bold text-white mb-2">±3.2%</h2>
                         <div className="flex items-center gap-2 text-xs text-theme-300">
-                            <span className="bg-theme-700/40 px-2 py-0.5 rounded-full border border-theme-500/30">Improved</span>
-                            <span>Down from 5.1% last month</span>
+                            <span className="bg-theme-700/40 px-2 py-0.5 rounded-full border border-theme-500/30">{t("forecast.improved", "Improved")}</span>
+                            <span>{t("forecast.variance_down", "Down from 5.1% last month")}</span>
                         </div>
                     </div>
                 </LiquidGlassCard>
@@ -99,11 +101,11 @@ export default function ForecastPage() {
                         <CalendarDays size={64} />
                     </div>
                     <div className="relative z-10">
-                        <p className="text-theme-300 text-sm font-medium mb-1">Next Restock Window</p>
-                        <h2 className="text-3xl font-bold text-theme-100 mb-2">14 Days</h2>
+                        <p className="text-theme-300 text-sm font-medium mb-1">{t("forecast.next_restock", "Next Restock Window")}</p>
+                        <h2 className="text-3xl font-bold text-theme-100 mb-2">{t("forecast.days_14", "14 Days")}</h2>
                         <div className="flex items-center gap-2 text-xs text-theme-100">
                             <button className="bg-theme-300 text-theme-900 px-3 py-1.5 rounded-md font-semibold hover:bg-theme-100 transition-colors">
-                                View Calendar
+                                {t("forecast.view_calendar", "View Calendar")}
                             </button>
                         </div>
                     </div>
@@ -114,13 +116,13 @@ export default function ForecastPage() {
             <LiquidGlassCard className="border border-theme-500/20 p-6 shadow-sm" borderRadius="0.75rem" blurIntensity="md">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h3 className="text-lg font-semibold text-theme-100">Demand Forecast Projection</h3>
-                        <p className="text-sm text-theme-500 mt-1">Expected demand across product tiers for the next 6 months</p>
+                        <h3 className="text-lg font-semibold text-theme-100">{t("forecast.projection_title", "Demand Forecast Projection")}</h3>
+                        <p className="text-sm text-theme-500 mt-1">{t("forecast.projection_desc", "Expected demand across product tiers for the next 6 months")}</p>
                     </div>
                     <select className="bg-theme-900/50 border border-theme-500/30 text-theme-100 text-sm rounded-lg focus:ring-theme-300 focus:border-theme-300 block p-2.5 outline-none">
-                        <option>Apparel</option>
-                        <option>Electronics</option>
-                        <option>Home Goods</option>
+                        <option>{t("forecast.cat_apparel", "Apparel")}</option>
+                        <option>{t("forecast.cat_electronics", "Electronics")}</option>
+                        <option>{t("forecast.cat_homegoods", "Home Goods")}</option>
                     </select>
                 </div>
 
@@ -128,7 +130,7 @@ export default function ForecastPage() {
                     {isLoading ? (
                         <div className="flex w-full h-full items-center justify-center">
                             <Loader2 className="animate-spin text-theme-500 w-12 h-12" />
-                            <span className="ml-4 text-theme-300">Generating AI Forecast...</span>
+                            <span className="ml-4 text-theme-300">{t("forecast.generating", "Generating AI Forecast...")}</span>
                         </div>
                     ) : error ? (
                         <div className="flex w-full h-full items-center justify-center">
@@ -136,7 +138,7 @@ export default function ForecastPage() {
                         </div>
                     ) : (!orgId || chartData.length === 0) ? (
                         <div className="flex w-full h-full items-center justify-center">
-                            <span className="text-theme-500">No prediction data available for this organization. Include NEXT_PUBLIC_ORG_ID.</span>
+                            <span className="text-theme-500">{t("forecast.no_data", "No prediction data available for this organization. Include NEXT_PUBLIC_ORG_ID.")}</span>
                         </div>
                     ) : (
                         <ResponsiveContainer width="100%" height="100%">
